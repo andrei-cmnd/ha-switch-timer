@@ -1,0 +1,165 @@
+blueprint:
+  name: Timed switch – control
+  description: >
+    One script per switch that the dashboard card calls.
+
+    Commands (field "command"):
+
+    - start: turn the switch on and start a timed run. Uses "minutes" if given,
+      otherwise the Run time helper, otherwise the default run time.
+
+    - tap: if the switch is on, turn it off; if it is off, start a timed run.
+
+    - extend: add "minutes" (default 15) to a running timed run.
+
+    - stop: turn the switch off (the auto-off automation cleans up).
+
+    Use together with the "Timed switch – auto off" automation blueprint,
+    with the same switch, timer and flag.
+  domain: script
+  input:
+    target_switch:
+      name: Switch
+      description: The device to control.
+      selector:
+        entity:
+          filter:
+            - domain:
+                - switch
+                - light
+                - fan
+                - input_boolean
+    run_timer:
+      name: Timer helper
+      description: The same Timer helper used in the auto-off automation.
+      selector:
+        entity:
+          filter:
+            - domain: timer
+    timed_run_flag:
+      name: Timed-run flag
+      description: The same Toggle helper used in the auto-off automation.
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+    duration_helper:
+      name: Run time helper (optional)
+      description: >
+        A Number helper holding the run time in minutes. Leave empty to always
+        use the default run time.
+      default: ""
+      selector:
+        entity:
+          filter:
+            - domain:
+                - input_number
+                - number
+    default_minutes:
+      name: Default run time
+      description: Used when no minutes are passed and no Run time helper is set (or it is unavailable).
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 240
+          unit_of_measurement: min
+    extend_minutes:
+      name: Default extend step
+      description: Minutes added by "extend" when no minutes are passed.
+      default: 15
+      selector:
+        number:
+          min: 1
+          max: 120
+          unit_of_measurement: min
+
+mode: queued
+max: 5
+
+fields:
+  command:
+    name: Command
+    required: true
+    default: tap
+    selector:
+      select:
+        options:
+          - start
+          - tap
+          - extend
+          - stop
+  minutes:
+    name: Minutes
+    description: Optional. Run time for "start", or time to add for "extend".
+    required: false
+    selector:
+      number:
+        min: 1
+        max: 240
+        unit_of_measurement: min
+
+variables:
+  target_switch: !input target_switch
+  run_timer: !input run_timer
+  duration_helper: !input duration_helper
+  default_minutes: !input default_minutes
+  extend_minutes: !input extend_minutes
+  given_minutes: "{{ (minutes | int(0)) if minutes is defined else 0 }}"
+  cmd: >-
+    {% if command == 'tap' %}{{ 'stop' if is_state(target_switch, 'on') else 'start' }}{% else %}{{ command }}{% endif %}
+  run_minutes: >-
+    {% if given_minutes | int > 0 %}{{ given_minutes | int }}
+    {% elif duration_helper and states(duration_helper) not in ['unknown', 'unavailable', ''] %}{{ states(duration_helper) | float(default_minutes) | int }}
+    {% else %}{{ default_minutes | int }}{% endif %}
+
+sequence:
+  - choose:
+      # ---------- START ----------
+      - conditions:
+          - condition: template
+            value_template: "{{ cmd == 'start' }}"
+        sequence:
+          - if:
+              - condition: template
+                value_template: "{{ given_minutes | int > 0 and duration_helper != '' }}"
+            then:
+              - action: "{{ duration_helper.split('.')[0] }}.set_value"
+                target:
+                  entity_id: "{{ duration_helper }}"
+                data:
+                  value: "{{ given_minutes | int }}"
+          - action: input_boolean.turn_on
+            target:
+              entity_id: !input timed_run_flag
+          - action: homeassistant.turn_on
+            target:
+              entity_id: !input target_switch
+          - action: timer.start
+            target:
+              entity_id: !input run_timer
+            data:
+              duration: "{{ (run_minutes | int * 60) | timestamp_custom('%H:%M:%S', false) }}"
+
+      # ---------- EXTEND ----------
+      - conditions:
+          - condition: template
+            value_template: "{{ cmd == 'extend' and is_state(run_timer, 'active') }}"
+        sequence:
+          - action: timer.start
+            target:
+              entity_id: !input run_timer
+            data:
+              duration: >-
+                {% set add = (given_minutes | int) if given_minutes | int > 0 else (extend_minutes | int) %}
+                {% set left = (as_datetime(state_attr(run_timer, 'finishes_at')) - now()).total_seconds() | int(0) %}
+                {{ (left + add * 60) | timestamp_custom('%H:%M:%S', false) }}
+
+      # ---------- STOP ----------
+      - conditions:
+          - condition: template
+            value_template: "{{ cmd == 'stop' }}"
+        sequence:
+          - action: homeassistant.turn_off
+            target:
+              entity_id: !input target_switch
