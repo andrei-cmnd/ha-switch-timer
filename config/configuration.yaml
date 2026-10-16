@@ -1,5 +1,18 @@
 # Home Assistant dev instance used by scripts/develop.
-default_config:
+# Explicit list instead of default_config: its go2rtc/stream parts need binaries
+# that are not in the dev container.
+automation:
+blueprint:
+config:
+frontend:
+history:
+logbook:
+my:
+script:
+search:
+system_health:
+timer:
+input_number:
 
 logger:
   default: info
