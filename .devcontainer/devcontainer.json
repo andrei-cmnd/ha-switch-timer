@@ -1,0 +1,43 @@
+{
+  "name": "Switch Timer (Home Assistant dev)",
+  "image": "mcr.microsoft.com/devcontainers/python:3.14",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "lts" },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "postCreateCommand": "scripts/setup",
+  "forwardPorts": [8123],
+  "portsAttributes": {
+    "8123": {
+      "label": "Home Assistant",
+      "onAutoForward": "notify"
+    }
+  },
+  "runArgs": ["-e", "GIT_EDITOR=code --wait"],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "redhat.vscode-yaml",
+        "github.vscode-github-actions"
+      ],
+      "settings": {
+        "files.eol": "\n",
+        "editor.tabSize": 4,
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.analysis.extraPaths": ["${workspaceFolder}"],
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": true
+        },
+        "yaml.customTags": [
+          "!input scalar",
+          "!secret scalar",
+          "!include scalar"
+        ]
+      }
+    }
+  },
+  "remoteUser": "vscode"
+}

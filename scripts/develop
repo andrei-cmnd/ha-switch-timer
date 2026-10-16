@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Run a Home Assistant dev instance on port 8123 that loads custom_components/switch_timer.
+set -e
+
+cd "$(dirname "$0")/.."
+
+mkdir -p config/custom_components
+
+# Link the integration into the config dir (created here so Windows checkouts never hold a symlink).
+if [[ ! -e config/custom_components/switch_timer ]]; then
+    ln -s ../../custom_components/switch_timer config/custom_components/switch_timer
+fi
+
+exec hass --config "${PWD}/config" --debug

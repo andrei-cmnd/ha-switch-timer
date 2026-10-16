@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Install everything needed to run the Home Assistant dev instance.
+set -e
+
+cd "$(dirname "$0")/.."
+
+sudo apt-get update
+sudo apt-get install -y --no-install-recommends ffmpeg libturbojpeg0 libpcap-dev
+
+python3 -m pip install --upgrade pip
+python3 -m pip install --requirement requirements.txt
