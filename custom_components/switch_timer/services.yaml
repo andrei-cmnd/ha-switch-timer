@@ -1,0 +1,45 @@
+start:
+  target:
+    entity:
+      - integration: switch_timer
+      - domain:
+          - switch
+          - light
+          - fan
+          - input_boolean
+  fields:
+    minutes:
+      selector:
+        number:
+          min: 1
+          max: 1440
+          unit_of_measurement: min
+          mode: box
+
+extend:
+  target:
+    entity:
+      - integration: switch_timer
+      - domain:
+          - switch
+          - light
+          - fan
+          - input_boolean
+  fields:
+    minutes:
+      selector:
+        number:
+          min: 1
+          max: 1440
+          unit_of_measurement: min
+          mode: box
+
+stop:
+  target:
+    entity:
+      - integration: switch_timer
+      - domain:
+          - switch
+          - light
+          - fan
+          - input_boolean
