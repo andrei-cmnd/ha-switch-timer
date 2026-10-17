@@ -1,0 +1,106 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a switch timer",
+        "description": "Pick the device to turn off automatically after a run started from the card.",
+        "data": {
+          "entity_id": "Entity",
+          "name": "Name",
+          "default_run_time": "Default run time"
+        },
+        "data_description": {
+          "entity_id": "The switch, light, fan or toggle helper to control.",
+          "name": "Leave empty to use the entity's name.",
+          "default_run_time": "Minutes a run lasts when no time is given."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This entity already has a switch timer."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "run_time_min": "Minimum run time",
+          "run_time_max": "Maximum run time",
+          "run_time_step": "Run time step",
+          "default_run_time": "Default run time",
+          "extend_minutes": "Extend step"
+        },
+        "data_description": {
+          "run_time_min": "Lowest value of the run time number.",
+          "run_time_max": "Highest value of the run time number.",
+          "run_time_step": "How much the run time changes per step.",
+          "default_run_time": "Minutes a run lasts when no time is given.",
+          "extend_minutes": "Minutes added by extend when no time is given."
+        }
+      }
+    },
+    "error": {
+      "max_not_above_min": "The maximum must be greater than the minimum.",
+      "default_out_of_range": "The default run time must be between the minimum and the maximum."
+    }
+  },
+  "entity": {
+    "number": {
+      "run_time": {
+        "name": "Run time"
+      }
+    },
+    "sensor": {
+      "ends_at": {
+        "name": "Ends at",
+        "state_attributes": {
+          "mode": {
+            "name": "Mode",
+            "state": {
+              "off": "Off",
+              "timed": "Timed",
+              "manual": "Manual"
+            }
+          },
+          "duration": {
+            "name": "Duration"
+          },
+          "started_at": {
+            "name": "Started at"
+          }
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "entity_not_managed": {
+      "message": "{entity_id} is not controlled by a Switch Timer."
+    }
+  },
+  "services": {
+    "start": {
+      "name": "Start",
+      "description": "Turns the entity on and starts a timed run.",
+      "fields": {
+        "minutes": {
+          "name": "Minutes",
+          "description": "Length of the run. Defaults to the run time number."
+        }
+      }
+    },
+    "extend": {
+      "name": "Extend",
+      "description": "Adds time to the active timed run. Does nothing without one.",
+      "fields": {
+        "minutes": {
+          "name": "Minutes",
+          "description": "Minutes to add. Defaults to the extend step option."
+        }
+      }
+    },
+    "stop": {
+      "name": "Stop",
+      "description": "Turns the entity off and clears the timed run."
+    }
+  }
+}
