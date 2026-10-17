@@ -84,11 +84,11 @@ blueprints/                       the prototype blueprints (no-install alternati
 3. Release v0.1.0, HACS instructions, screenshots.
 4. Migration guide for the existing LG4 prototype (switch.pm4_lg).
 
-## Open decisions (ask the user before Phase 0 if still open)
-- Names: repo `ha-switch-timer`, display "Switch Timer", domain `switch_timer` (check HACS for conflicts).
-- Supported domains: switch only, or also light/fan/input_boolean.
-- Defaults: presets 15/30/60/120, extend 15, run time 30, range 1–240.
-- Public + MIT?  Keep blueprints in repo?
+## Decisions (final)
+- Repo `ha-switch-timer`, display name "Switch Timer", domain `switch_timer`.
+- Supported domains: switch, light, fan, input_boolean.
+- Defaults: presets 15/30/60/120, extend 15, run time 30, range 1–240, step 1.
+- Public repo, MIT license. Keep the prototype blueprints in `blueprints/`.
 
 ## Conventions
 - Python: HA core style, type hints, async only, no blocking I/O; ruff.
