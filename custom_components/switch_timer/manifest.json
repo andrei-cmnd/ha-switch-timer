@@ -2,12 +2,12 @@
   "domain": "switch_timer",
   "name": "Switch Timer",
   "codeowners": ["@andrei-cmnd"],
-  "config_flow": false,
+  "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/andrei-cmnd/ha-switch-timer",
   "integration_type": "helper",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/andrei-cmnd/ha-switch-timer/issues",
   "requirements": [],
-  "version": "0.0.0"
+  "version": "0.1.0-dev"
 }
