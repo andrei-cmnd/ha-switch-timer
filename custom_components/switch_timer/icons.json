@@ -1,0 +1,25 @@
+{
+  "entity": {
+    "number": {
+      "run_time": {
+        "default": "mdi:timer-cog-outline"
+      }
+    },
+    "sensor": {
+      "ends_at": {
+        "default": "mdi:timer-off-outline"
+      }
+    }
+  },
+  "services": {
+    "start": {
+      "service": "mdi:timer-play-outline"
+    },
+    "extend": {
+      "service": "mdi:timer-plus-outline"
+    },
+    "stop": {
+      "service": "mdi:timer-stop-outline"
+    }
+  }
+}

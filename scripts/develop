@@ -4,7 +4,19 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+if [[ "$(id -u)" -eq 0 ]]; then
+    echo "Do not run Home Assistant as root (or with sudo); files in config/ would become root-owned." >&2
+    exit 1
+fi
+
 mkdir -p config/custom_components
+
+# Files left behind by a root process (e.g. config/home-assistant.log) make HA fail with
+# PermissionError. Take them back before starting. find does not follow the integration symlink.
+if [[ ! -w config ]] || [[ -n "$(find config ! -user "$(id -u)" -print -quit)" ]]; then
+    echo "config/ has files not owned by $(id -un); fixing ownership (sudo)."
+    sudo chown -R "$(id -u):$(id -g)" config
+fi
 
 # Link the integration into the config dir (created here so Windows checkouts never hold a symlink).
 if [[ ! -e config/custom_components/switch_timer ]]; then

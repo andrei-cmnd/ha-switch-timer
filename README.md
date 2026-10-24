@@ -33,11 +33,32 @@ _TODO (v0.1.0)._
 
 ## Configuration
 
-_TODO._ Add the integration in **Settings → Devices & services → Add integration → Switch Timer** and pick the
-entity to control. Each controlled entity gets its own entry with:
+Go to **Settings → Devices & services → Add integration → Switch Timer** and fill in:
 
-- `number.<name>_run_time`: the run time in minutes.
-- `sensor.<name>_ends_at`: when the current timed run ends.
+- **Entity**: the switch, light, fan or toggle helper to control. Each entity can have one Switch Timer.
+- **Name**: optional. Defaults to the entity's name.
+- **Default run time**: how many minutes a run lasts when no time is given (default 30).
+
+Each entry creates a device with two entities:
+
+| Entity | Description |
+|---|---|
+| `number.<name>_run_time` | Run time in minutes, used when a run starts without `minutes`. Kept across restarts. |
+| `sensor.<name>_ends_at` | When the current timed run ends; `unknown` when there is none. Attributes: `mode` (`off`, `timed` or `manual`), `duration` (seconds, including extensions) and `started_at`. |
+
+**Configure** on the entry sets the run time's minimum, maximum and step (default 1–240, step 1), the default run
+time, and the extend step (default 15 minutes).
+
+### How it behaves
+
+| Situation | Result |
+|---|---|
+| Run started from the card or `switch_timer.start` | Turns on and starts a timed run. |
+| Turned on anywhere else | Stays on with no timer (`manual`). |
+| Turned off anywhere during a timed run | The run is cancelled. |
+| End time reached | Turns off. If the entity is unavailable then, it's turned off when it comes back. |
+| Home Assistant restarts during a timed run | The run is restored. If its end time passed meanwhile, the entity is turned off once it's available. If the entity is found off, the run is dropped. |
+| Home Assistant restarts while on without a timer | Nothing happens. |
 
 ## Card
 
@@ -59,13 +80,21 @@ entity: switch.my_pump
 
 ## Actions
 
-_TODO._
+Target either the controlled entity or one of the Switch Timer's own entities.
 
 | Action | Description |
 |---|---|
-| `switch_timer.start` | Turn on and start a timed run (`minutes` optional). |
-| `switch_timer.extend` | Add `minutes` (default 15) to an active timed run. |
-| `switch_timer.stop` | Turn off and clear the run. |
+| `switch_timer.start` | Turn on and start a timed run. `minutes` is optional and defaults to the run time number. |
+| `switch_timer.extend` | Add `minutes` (default: the extend step, 15) to the active timed run. Does nothing without one. |
+| `switch_timer.stop` | Turn off and clear the run. Also turns off an entity that was turned on manually. |
+
+```yaml
+action: switch_timer.start
+target:
+  entity_id: switch.my_pump
+data:
+  minutes: 45
+```
 
 ## Without installing: blueprints
 
@@ -85,6 +114,11 @@ They are kept in [`blueprints/`](blueprints) for people who don't want a custom 
    working tree, and a test device `switch.test_pump` is available.
 
 Restart Home Assistant (stop the task and start it again) after you change Python code. `scripts/lint` formats and lints the code with ruff.
+`scripts/test` runs the tests with coverage.
+
+Never run `hass` or the tests as root or with `sudo`: root-owned files in `config/` make Home Assistant fail with a
+`PermissionError`. Both scripts refuse to run as root. `scripts/develop` takes back ownership of `config/` (using
+`sudo chown`) if it finds files there that you don't own.
 
 ## License
 

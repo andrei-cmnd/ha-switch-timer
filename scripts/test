@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Run the test suite with coverage. Extra arguments are passed to pytest.
+set -e
+
+cd "$(dirname "$0")/.."
+
+if [[ "$(id -u)" -eq 0 ]]; then
+    echo "Do not run the tests as root (or with sudo)." >&2
+    exit 1
+fi
+
+exec python3 -m pytest --cov=custom_components.switch_timer --cov-report=term-missing "$@"

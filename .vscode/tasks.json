@@ -8,6 +8,12 @@
       "problemMatcher": []
     },
     {
+      "label": "Run tests",
+      "type": "shell",
+      "command": "scripts/test",
+      "problemMatcher": []
+    },
+    {
       "label": "Lint (ruff)",
       "type": "shell",
       "command": "scripts/lint",
