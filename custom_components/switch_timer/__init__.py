@@ -9,6 +9,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.typing import ConfigType
 
+from .card import async_register_card
 from .const import DOMAIN, STORAGE_VERSION
 from .manager import SwitchTimerManager, storage_key
 from .services import async_setup_services
@@ -21,8 +22,9 @@ type SwitchTimerConfigEntry = ConfigEntry[SwitchTimerManager]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Register the Switch Timer actions."""
+    """Register the actions and the card."""
     async_setup_services(hass)
+    await async_register_card(hass)
     return True
 
 
