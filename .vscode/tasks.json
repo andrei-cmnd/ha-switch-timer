@@ -8,6 +8,19 @@
       "problemMatcher": []
     },
     {
+      "label": "Watch card",
+      "type": "shell",
+      "command": "npm run watch --prefix frontend",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Build card",
+      "type": "shell",
+      "command": "npm run build --prefix frontend",
+      "problemMatcher": []
+    },
+    {
       "label": "Run tests",
       "type": "shell",
       "command": "scripts/test",
