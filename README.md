@@ -114,6 +114,11 @@ They are kept in [`blueprints/`](blueprints) for people who don't want a custom 
    working tree, and a test device `switch.test_pump` is available.
 
 Restart Home Assistant (stop the task and start it again) after you change Python code. `scripts/lint` formats and lints the code with ruff.
+`scripts/test` runs the tests with coverage.
+
+Never run `hass` or the tests as root or with `sudo`: root-owned files in `config/` make Home Assistant fail with a
+`PermissionError`. Both scripts refuse to run as root. `scripts/develop` takes back ownership of `config/` (using
+`sudo chown`) if it finds files there that you don't own.
 
 ## License
 
