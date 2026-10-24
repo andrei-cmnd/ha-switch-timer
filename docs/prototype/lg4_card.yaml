@@ -1,0 +1,573 @@
+variables:
+  name: LG4
+  switch: switch.pm4_lg
+  timer: timer.lg4
+  duration: input_number.lg4_run_time
+  script: script.lg4_control
+type: custom:button-card
+entity: '[[[ return variables.switch ]]]'
+show_name: false
+show_icon: false
+show_state: false
+show_label: false
+triggers_update: all
+tap_action:
+  action: none
+hold_action:
+  action: none
+styles:
+  card:
+    - padding: 12px
+    - border-radius: 20px
+    - border: '2px solid #C9CDD2'
+    - background-color: '#FFFFFF'
+    - box-shadow: none
+    - --ha-card-border-width: 0px
+    - --ha-card-box-shadow: none
+  grid:
+    - grid-template-areas: '"controls"'
+    - grid-template-columns: 1fr
+    - grid-template-rows: auto
+custom_fields:
+  controls:
+    card:
+      type: vertical-stack
+      cards:
+        - type: custom:button-card
+          entity: '[[[ return variables.switch ]]]'
+          name: '[[[ return variables.name ]]]'
+          icon: mdi:power
+          show_state: false
+          show_label: true
+          tap_action:
+            action: call-service
+            service: script.turn_on
+            data:
+              entity_id: '[[[ return variables.script ]]]'
+              variables:
+                command: tap
+            haptic: medium
+          hold_action:
+            action: more-info
+          label: |
+            [[[
+              const sw = states[variables.switch];
+              if (sw && sw.state === 'on') {
+                const t = states[variables.timer];
+                if (t && t.state === 'active' && t.attributes.finishes_at) {
+                  const end = new Date(t.attributes.finishes_at);
+                  return 'On · turns off at ' + end.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                }
+                return 'On · no timer';
+              }
+              const d = states[variables.duration];
+              const mins = d ? Math.round(Number(d.state)) : 30;
+              return 'Off · tap to run for ' + mins + ' min';
+            ]]]
+          custom_fields:
+            pill: >-
+              [[[ const sw = states[variables.switch]; return (sw && sw.state
+              === 'on') ? 'ON' : 'OFF'; ]]]
+          styles:
+            card:
+              - padding: 14px
+              - border-radius: 16px
+              - background-color: '#F4F5F7'
+              - border: 2px solid transparent
+            grid:
+              - grid-template-areas: '"i n pill" "i l pill"'
+              - grid-template-columns: 60px 1fr auto
+              - grid-template-rows: auto auto
+            img_cell:
+              - width: 48px
+              - height: 48px
+              - border-radius: 50%
+              - background-color: '#DADDE1'
+            icon:
+              - width: 24px
+              - color: '#4A5058'
+            name:
+              - justify-self: start
+              - font-size: 20px
+              - font-weight: 600
+            label:
+              - justify-self: start
+              - font-size: 14px
+              - color: '#555B63'
+            custom_fields:
+              pill:
+                - font-size: 13px
+                - font-weight: 600
+                - padding: 6px 12px
+                - border-radius: 999px
+                - background-color: '#E4E6EA'
+                - color: '#555B63'
+          state:
+            - value: 'on'
+              styles:
+                card:
+                  - background-color: '#E5F4EB'
+                  - border: '2px solid #2E9E5B'
+                img_cell:
+                  - background-color: '#2E9E5B'
+                icon:
+                  - color: '#FFFFFF'
+                label:
+                  - color: '#1E5A37'
+                custom_fields:
+                  pill:
+                    - background-color: '#1F7A45'
+                    - color: '#FFFFFF'
+        - type: custom:button-card
+          show_name: false
+          show_icon: false
+          show_state: false
+          tap_action:
+            action: none
+          hold_action:
+            action: none
+          styles:
+            card:
+              - padding: 0px
+              - background: none
+              - border: none
+              - box-shadow: none
+              - display: >-
+                  [[[ const s = states[variables.switch]; return (s && s.state
+                  === 'on') ? 'none' : 'block'; ]]]
+            grid:
+              - grid-template-areas: '"section"'
+              - grid-template-columns: 1fr
+              - grid-template-rows: auto
+          custom_fields:
+            section:
+              card:
+                type: vertical-stack
+                cards:
+                  - type: custom:button-card
+                    name: Run time
+                    show_icon: false
+                    show_state: false
+                    tap_action:
+                      action: none
+                    hold_action:
+                      action: none
+                    custom_fields:
+                      minus:
+                        card:
+                          type: custom:button-card
+                          name: "−"
+                          show_icon: false
+                          tap_action:
+                            action: call-service
+                            service: input_number.decrement
+                            data:
+                              entity_id: '[[[ return variables.duration ]]]'
+                          hold_action:
+                            action: call-service
+                            service: input_number.decrement
+                            repeat: 150
+                            data:
+                              entity_id: '[[[ return variables.duration ]]]'
+                          styles:
+                            card:
+                              - width: 44px
+                              - height: 44px
+                              - padding: 0px
+                              - border-radius: 10px
+                              - border: '1px solid #C9CDD2'
+                              - background-color: '#FFFFFF'
+                              - box-shadow: none
+                            name:
+                              - font-size: 22px
+                              - color: '#1F2328'
+                      val:
+                        card:
+                          type: custom:button-card
+                          entity: '[[[ return variables.duration ]]]'
+                          show_icon: false
+                          show_name: false
+                          show_state: false
+                          show_label: true
+                          label: "[[[ const d = states[variables.duration]; return (d ? Math.round(Number(d.state)) : 30) + ' min'; ]]]"
+                          tap_action:
+                            action: more-info
+                          hold_action:
+                            action: none
+                          styles:
+                            card:
+                              - height: 44px
+                              - padding: 0px
+                              - border-radius: 10px
+                              - border: '1px dashed #C9CDD2'
+                              - background: none
+                              - box-shadow: none
+                            label:
+                              - font-size: 20px
+                              - font-weight: 600
+                              - color: '#1F2328'
+                      plus:
+                        card:
+                          type: custom:button-card
+                          name: "+"
+                          show_icon: false
+                          tap_action:
+                            action: call-service
+                            service: input_number.increment
+                            data:
+                              entity_id: '[[[ return variables.duration ]]]'
+                          hold_action:
+                            action: call-service
+                            service: input_number.increment
+                            repeat: 150
+                            data:
+                              entity_id: '[[[ return variables.duration ]]]'
+                          styles:
+                            card:
+                              - width: 44px
+                              - height: 44px
+                              - padding: 0px
+                              - border-radius: 10px
+                              - border: '1px solid #C9CDD2'
+                              - background-color: '#FFFFFF'
+                              - box-shadow: none
+                            name:
+                              - font-size: 22px
+                              - color: '#1F2328'
+                    styles:
+                      card:
+                        - padding: 4px
+                        - background: none
+                        - border: none
+                        - box-shadow: none
+                      grid:
+                        - grid-template-areas: '"n minus val plus"'
+                        - grid-template-columns: 1fr 44px 96px 44px
+                        - grid-template-rows: auto
+                        - column-gap: 8px
+                        - align-items: center
+                      name:
+                        - justify-self: start
+                        - font-size: 16px
+                        - font-weight: 500
+                        - color: '#1F2328'
+                  - type: grid
+                    columns: 4
+                    square: false
+                    cards:
+                      - type: custom:button-card
+                        name: 15 min
+                        show_icon: false
+                        tap_action:
+                          action: call-service
+                          service: script.turn_on
+                          data:
+                            entity_id: '[[[ return variables.script ]]]'
+                            variables:
+                              command: start
+                              minutes: 15
+                        styles:
+                          card:
+                            - height: 48px
+                            - border-radius: 10px
+                            - font-size: 14px
+                            - border: '1px solid #C9CDD2'
+                            - background-color: >-
+                                [[[ return
+                                Number(states[variables.duration].state) === 15
+                                ? '#1F2328' : '#FFFFFF' ]]]
+                            - color: >-
+                                [[[ return
+                                Number(states[variables.duration].state) === 15
+                                ? '#FFFFFF' : '#1F2328' ]]]
+                      - type: custom:button-card
+                        name: 30 min
+                        show_icon: false
+                        tap_action:
+                          action: call-service
+                          service: script.turn_on
+                          data:
+                            entity_id: '[[[ return variables.script ]]]'
+                            variables:
+                              command: start
+                              minutes: 30
+                        styles:
+                          card:
+                            - height: 48px
+                            - border-radius: 10px
+                            - font-size: 14px
+                            - border: '1px solid #C9CDD2'
+                            - background-color: >-
+                                [[[ return
+                                Number(states[variables.duration].state) === 30
+                                ? '#1F2328' : '#FFFFFF' ]]]
+                            - color: >-
+                                [[[ return
+                                Number(states[variables.duration].state) === 30
+                                ? '#FFFFFF' : '#1F2328' ]]]
+                      - type: custom:button-card
+                        name: 1 h
+                        show_icon: false
+                        tap_action:
+                          action: call-service
+                          service: script.turn_on
+                          data:
+                            entity_id: '[[[ return variables.script ]]]'
+                            variables:
+                              command: start
+                              minutes: 60
+                        styles:
+                          card:
+                            - height: 48px
+                            - border-radius: 10px
+                            - font-size: 14px
+                            - border: '1px solid #C9CDD2'
+                            - background-color: >-
+                                [[[ return
+                                Number(states[variables.duration].state) === 60
+                                ? '#1F2328' : '#FFFFFF' ]]]
+                            - color: >-
+                                [[[ return
+                                Number(states[variables.duration].state) === 60
+                                ? '#FFFFFF' : '#1F2328' ]]]
+                      - type: custom:button-card
+                        name: 2 h
+                        show_icon: false
+                        tap_action:
+                          action: call-service
+                          service: script.turn_on
+                          data:
+                            entity_id: '[[[ return variables.script ]]]'
+                            variables:
+                              command: start
+                              minutes: 120
+                        styles:
+                          card:
+                            - height: 48px
+                            - border-radius: 10px
+                            - font-size: 14px
+                            - border: '1px solid #C9CDD2'
+                            - background-color: >-
+                                [[[ return
+                                Number(states[variables.duration].state) === 120
+                                ? '#1F2328' : '#FFFFFF' ]]]
+                            - color: >-
+                                [[[ return
+                                Number(states[variables.duration].state) === 120
+                                ? '#FFFFFF' : '#1F2328' ]]]
+        - type: custom:button-card
+          show_name: false
+          show_icon: false
+          show_state: false
+          tap_action:
+            action: none
+          hold_action:
+            action: none
+          styles:
+            card:
+              - padding: 0px
+              - background: none
+              - border: none
+              - box-shadow: none
+              - display: >-
+                  [[[ const s = states[variables.switch]; const t =
+                  states[variables.timer]; return (s && s.state === 'on' && t &&
+                  t.state === 'active') ? 'block' : 'none'; ]]]
+            grid:
+              - grid-template-areas: '"section"'
+              - grid-template-columns: 1fr
+              - grid-template-rows: auto
+          custom_fields:
+            section:
+              card:
+                type: vertical-stack
+                cards:
+                  - type: custom:button-card
+                    name: Time left
+                    icon: mdi:timer-outline
+                    show_state: false
+                    tap_action:
+                      action: none
+                    hold_action:
+                      action: none
+                    custom_fields:
+                      cd: |
+                        [[[
+                          const t = states[variables.timer];
+                          if (!t || t.state !== 'active' || !t.attributes.finishes_at) return '';
+                          const end = new Date(t.attributes.finishes_at);
+                          const left = Math.max(0, Math.round((end.getTime() - Date.now()) / 1000));
+                          let ok = typeof CSS !== 'undefined' && !!CSS.registerProperty;
+                          if (ok) {
+                            try { CSS.registerProperty({name: '--stc-s', syntax: '<integer>', inherits: false, initialValue: '0'}); } catch (e) {}
+                            try { CSS.registerProperty({name: '--stc-m', syntax: '<integer>', inherits: false, initialValue: '0'}); } catch (e) {}
+                          }
+                          if (!ok) return end.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                          const id = 'cd' + Date.now();
+                          return `<style>
+                            @keyframes ${id} { from { --stc-s: ${left}; } to { --stc-s: 0; } }
+                            .${id} { --stc-s: ${left}; --stc-m: calc(var(--stc-s) / 60 - 0.5);
+                                     animation: ${id} ${left}s linear forwards;
+                                     counter-reset: m var(--stc-m) s calc(var(--stc-s) - var(--stc-m) * 60); }
+                            .${id}::after { content: counter(m) ":" counter(s, decimal-leading-zero); }
+                          </style><span class="${id}"></span>`;
+                        ]]]
+                      bar: |
+                        [[[
+                          const t = states[variables.timer];
+                          if (!t || t.state !== 'active' || !t.attributes.finishes_at) return '';
+                          const p = String(t.attributes.duration || '0:0:0').split(':').map(Number);
+                          const dur = (p[0] || 0) * 3600 + (p[1] || 0) * 60 + (p[2] || 0);
+                          const left = Math.max(0, (new Date(t.attributes.finishes_at).getTime() - Date.now()) / 1000);
+                          const pct = dur > 0 ? Math.min(100, left / dur * 100) : 0;
+                          const id = 'tb' + Date.now();
+                          const segW = 6;  // segment width in px
+                          const gap = 2;   // gap between segments in px
+                          const mask = `repeating-linear-gradient(90deg, #000 0px, #000 ${segW}px, transparent ${segW}px, transparent ${segW + gap}px)`;
+                          return `<style>@keyframes ${id}{from{width:${pct}%}to{width:0%}}</style><div style="position:relative;height:8px;border-radius:4px;-webkit-mask:${mask};mask:${mask};"><div style="position:absolute;top:0;left:0;right:0;bottom:0;background:#D3ECDD;"></div><div style="position:absolute;top:0;left:0;bottom:0;width:${pct}%;background:#2E9E5B;animation:${id} ${left}s linear forwards;"></div></div>`;
+                        ]]]
+                    styles:
+                      card:
+                        - padding: 12px 14px
+                        - border-radius: 12px
+                        - background-color: '#F4F5F7'
+                        - border: none
+                        - box-shadow: none
+                      grid:
+                        - grid-template-areas: '"i n cd" "i bar bar"'
+                        - grid-template-columns: 40px 1fr auto
+                        - grid-template-rows: auto auto
+                        - column-gap: 12px
+                        - row-gap: 8px
+                        - align-items: center
+                      img_cell:
+                        - width: 40px
+                        - height: 40px
+                        - border-radius: 50%
+                        - background-color: '#D3ECDD'
+                      icon:
+                        - width: 20px
+                        - color: '#1F7A45'
+                      name:
+                        - justify-self: start
+                        - font-size: 15px
+                        - font-weight: 600
+                        - color: '#1F2328'
+                      custom_fields:
+                        cd:
+                          - justify-self: end
+                          - font-size: 20px
+                          - font-weight: 600
+                          - color: '#1F7A45'
+                          - font-variant-numeric: tabular-nums
+                        bar:
+                          - width: 100%
+                  - type: grid
+                    columns: 2
+                    square: false
+                    cards:
+                      - type: custom:button-card
+                        name: +15 min
+                        show_icon: false
+                        tap_action:
+                          action: call-service
+                          service: script.turn_on
+                          data:
+                            entity_id: '[[[ return variables.script ]]]'
+                            variables:
+                              command: extend
+                              minutes: 15
+                        styles:
+                          card:
+                            - height: 48px
+                            - border-radius: 10px
+                            - font-size: 15px
+                            - border: '1px solid #C9CDD2'
+                            - background-color: '#FFFFFF'
+                            - color: '#1F2328'
+                      - type: custom:button-card
+                        name: Stop now
+                        show_icon: false
+                        tap_action:
+                          action: call-service
+                          service: script.turn_on
+                          data:
+                            entity_id: '[[[ return variables.script ]]]'
+                            variables:
+                              command: stop
+                        styles:
+                          card:
+                            - height: 48px
+                            - border-radius: 10px
+                            - font-size: 15px
+                            - font-weight: 600
+                            - background-color: '#1F2328'
+                            - color: '#FFFFFF'
+        - type: custom:button-card
+          show_name: false
+          show_icon: false
+          show_state: false
+          tap_action:
+            action: none
+          hold_action:
+            action: none
+          styles:
+            card:
+              - padding: 0px
+              - background: none
+              - border: none
+              - box-shadow: none
+              - display: >-
+                  [[[ const s = states[variables.switch]; const t =
+                  states[variables.timer]; return (s && s.state === 'on' && !(t
+                  && t.state === 'active')) ? 'block' : 'none'; ]]]
+            grid:
+              - grid-template-areas: '"section"'
+              - grid-template-columns: 1fr
+              - grid-template-rows: auto
+          custom_fields:
+            section:
+              card:
+                type: grid
+                columns: 2
+                square: false
+                cards:
+                  - type: custom:button-card
+                    name: >-
+                      [[[ const d = states[variables.duration]; return 'Start '
+                      + (d ? Math.round(Number(d.state)) : 30) + ' min timer';
+                      ]]]
+                    show_icon: false
+                    tap_action:
+                      action: call-service
+                      service: script.turn_on
+                      data:
+                        entity_id: '[[[ return variables.script ]]]'
+                        variables:
+                          command: start
+                    styles:
+                      card:
+                        - height: 48px
+                        - border-radius: 10px
+                        - font-size: 15px
+                        - border: '1px solid #2E9E5B'
+                        - background-color: '#FFFFFF'
+                        - color: '#1F7A45'
+                  - type: custom:button-card
+                    name: Turn off
+                    show_icon: false
+                    tap_action:
+                      action: call-service
+                      service: script.turn_on
+                      data:
+                        entity_id: '[[[ return variables.script ]]]'
+                        variables:
+                          command: stop
+                    styles:
+                      card:
+                        - height: 48px
+                        - border-radius: 10px
+                        - font-size: 15px
+                        - font-weight: 600
+                        - background-color: '#1F2328'
+                        - color: '#FFFFFF'

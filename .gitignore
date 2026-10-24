@@ -21,7 +21,7 @@ custom_components/switch_timer/frontend/*.js.map
 custom_components/switch_timer/frontend/*.gz
 
 # Local prototype (button-card setup, kept for the migration guide)
-prototype/
+/prototype/
 
 # Release artifacts
 *.zip

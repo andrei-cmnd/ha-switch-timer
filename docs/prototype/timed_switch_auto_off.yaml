@@ -1,0 +1,126 @@
+blueprint:
+  name: Timed switch – auto off
+  description: >
+    Ends timed runs started by the "Timed switch – control" script.
+
+    - Turns the switch off when its timer finishes or is cancelled.
+
+    - Cancels the timer when the switch is turned off from anywhere.
+
+    - After a Home Assistant restart, turns the switch off only if a timed run
+      was active and its timer is no longer running.
+
+    Turning the switch on from anywhere else never starts a timer.
+  domain: automation
+  input:
+    target_switch:
+      name: Switch
+      description: The device to control.
+      selector:
+        entity:
+          filter:
+            - domain:
+                - switch
+                - light
+                - fan
+                - input_boolean
+    run_timer:
+      name: Timer helper
+      description: A Timer helper dedicated to this switch (Restore turned on).
+      selector:
+        entity:
+          filter:
+            - domain: timer
+    timed_run_flag:
+      name: Timed-run flag
+      description: A Toggle helper dedicated to this switch. It marks runs started from the card.
+      selector:
+        entity:
+          filter:
+            - domain: input_boolean
+    restart_delay:
+      name: Restart grace period
+      description: Seconds to wait after Home Assistant starts before checking for an expired run.
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 300
+          unit_of_measurement: s
+
+mode: queued
+max_exceeded: silent
+
+variables:
+  restart_delay: !input restart_delay
+
+triggers:
+  - trigger: state
+    entity_id: !input target_switch
+    from: "on"
+    to: "off"
+    id: switch_off
+  - trigger: event
+    event_type: timer.finished
+    event_data:
+      entity_id: !input run_timer
+    id: timer_done
+  - trigger: event
+    event_type: timer.cancelled
+    event_data:
+      entity_id: !input run_timer
+    id: timer_cancelled
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+
+conditions: []
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: switch_off
+        sequence:
+          - if:
+              - condition: state
+                entity_id: !input run_timer
+                state: active
+            then:
+              - action: timer.cancel
+                target:
+                  entity_id: !input run_timer
+          - action: input_boolean.turn_off
+            target:
+              entity_id: !input timed_run_flag
+
+      - conditions:
+          - condition: trigger
+            id:
+              - timer_done
+              - timer_cancelled
+        sequence:
+          - action: homeassistant.turn_off
+            target:
+              entity_id: !input target_switch
+          - action: input_boolean.turn_off
+            target:
+              entity_id: !input timed_run_flag
+
+      - conditions:
+          - condition: trigger
+            id: ha_start
+        sequence:
+          - delay: "{{ restart_delay | int(30) }}"
+          - condition: state
+            entity_id: !input timed_run_flag
+            state: "on"
+          - condition: state
+            entity_id: !input run_timer
+            state: idle
+          - action: homeassistant.turn_off
+            target:
+              entity_id: !input target_switch
+          - action: input_boolean.turn_off
+            target:
+              entity_id: !input timed_run_flag
