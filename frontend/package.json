@@ -1,0 +1,24 @@
+{
+  "name": "switch-timer-card",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lovelace card for the Switch Timer integration",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w --environment DEV",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "lit": "3.3.3"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "16.0.3",
+    "@rollup/plugin-terser": "1.0.0",
+    "esbuild": "0.28.2",
+    "rollup": "4.64.5",
+    "rollup-plugin-esbuild": "6.2.1",
+    "typescript": "7.0.2"
+  }
+}
