@@ -34,6 +34,7 @@ SERVICE_EXTEND: Final = "extend"
 SERVICE_STOP: Final = "stop"
 
 # Sensor attributes
+ATTR_CONTROLLED_ENTITY_ID: Final = "controlled_entity_id"
 ATTR_DURATION: Final = "duration"
 ATTR_MODE: Final = "mode"
 ATTR_STARTED_AT: Final = "started_at"

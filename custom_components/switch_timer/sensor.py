@@ -9,7 +9,7 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import ATTR_DURATION, ATTR_MODE, ATTR_STARTED_AT
+from .const import ATTR_CONTROLLED_ENTITY_ID, ATTR_DURATION, ATTR_MODE, ATTR_STARTED_AT
 from .entity import SwitchTimerEntity
 
 if TYPE_CHECKING:
@@ -32,6 +32,8 @@ class EndsAtSensor(SwitchTimerEntity, SensorEntity):
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
     _attr_should_poll = False
+    # Static link for the card; no need to store it in the recorder.
+    _unrecorded_attributes = frozenset({ATTR_CONTROLLED_ENTITY_ID})
 
     def __init__(self, entry: SwitchTimerConfigEntry) -> None:
         """Initialize the sensor."""
@@ -49,9 +51,10 @@ class EndsAtSensor(SwitchTimerEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return mode, duration and start time."""
+        """Return mode, duration, start time and the controlled entity."""
         run = self.manager.run
         return {
+            ATTR_CONTROLLED_ENTITY_ID: self.manager.entity_id,
             ATTR_MODE: self.manager.mode,
             ATTR_DURATION: run.duration if run else None,
             ATTR_STARTED_AT: run.started_at.isoformat() if run else None,
