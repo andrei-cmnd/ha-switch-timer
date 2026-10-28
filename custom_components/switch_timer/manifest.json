@@ -1,6 +1,7 @@
 {
   "domain": "switch_timer",
   "name": "Switch Timer",
+  "after_dependencies": ["frontend", "http"],
   "codeowners": ["@andrei-cmnd"],
   "config_flow": true,
   "dependencies": [],

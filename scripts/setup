@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install everything needed to run the Home Assistant dev instance.
+# Install everything needed to run the Home Assistant dev instance, the tests and the card build.
 set -e
 
 cd "$(dirname "$0")/.."
@@ -8,4 +8,8 @@ sudo apt-get update
 sudo apt-get install -y --no-install-recommends ffmpeg libturbojpeg0 libpcap-dev
 
 python3 -m pip install --upgrade pip
-python3 -m pip install --requirement requirements.txt
+python3 -m pip install --requirement requirements_test.txt
+
+# Build the card once so HA finds it on first start (use the "Watch card" task while editing).
+npm ci --prefix frontend
+npm run build --prefix frontend

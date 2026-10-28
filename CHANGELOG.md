@@ -17,3 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Actions `switch_timer.start`, `switch_timer.extend` and `switch_timer.stop`.
 - Diagnostics.
 - Test suite covering every row of the behavior table, run in CI.
+- Lovelace card `custom:switch-timer-card`, loaded by the integration (no resource to add):
+  off / timed / manual states, live countdown, segmented progress bar, presets, visual editor,
+  dark-mode colors and `switch-timer-*` theme variables.
+- `controlled_entity_id` attribute on the ends-at sensor.

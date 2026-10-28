@@ -86,6 +86,11 @@ async def test_start_with_minutes(hass: HomeAssistant, target: str) -> None:
     assert dt_util.parse_datetime(attrs["started_at"]) == now
 
 
+async def test_sensor_links_controlled_entity(hass: HomeAssistant) -> None:
+    """The card finds the sensor through its controlled_entity_id attribute."""
+    assert _attrs(hass)["controlled_entity_id"] == PUMP
+
+
 async def test_start_uses_run_time_number(hass: HomeAssistant) -> None:
     """Without minutes, the run lasts as long as the run-time number says."""
     await hass.services.async_call(

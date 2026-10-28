@@ -44,7 +44,7 @@ Each entry creates a device with two entities:
 | Entity | Description |
 |---|---|
 | `number.<name>_run_time` | Run time in minutes, used when a run starts without `minutes`. Kept across restarts. |
-| `sensor.<name>_ends_at` | When the current timed run ends; `unknown` when there is none. Attributes: `mode` (`off`, `timed` or `manual`), `duration` (seconds, including extensions) and `started_at`. |
+| `sensor.<name>_ends_at` | When the current timed run ends; `unknown` when there is none. Attributes: `mode` (`off`, `timed` or `manual`), `duration` (seconds, including extensions), `started_at` and `controlled_entity_id`. |
 
 **Configure** on the entry sets the run time's minimum, maximum and step (default 1–240, step 1), the default run
 time, and the extend step (default 15 minutes).
@@ -62,21 +62,47 @@ time, and the extend step (default 15 minutes).
 
 ## Card
 
-_TODO._
+The integration loads the card itself; there's no Lovelace resource to add. On a dashboard, choose
+**Add card → Switch Timer**, or use YAML:
 
 ```yaml
 type: custom:switch-timer-card
 entity: switch.my_pump
 ```
 
+The entity must have a Switch Timer (see [Configuration](#configuration)).
+
 | Option | Description |
 |---|---|
 | `entity` | **Required.** The controlled entity. |
-| `name` | Card title (default: entry name). |
+| `name` | Card title (default: the entity's name). |
 | `icon` | Header icon (default: `mdi:power`). |
 | `presets` | Preset buttons in minutes (default: `[15, 30, 60, 120]`). |
 | `extend_minutes` | Minutes added by the extend button (default: `15`). |
 | `show_hints` | Show the hint line (default: `true`). |
+
+Using the card:
+
+- **Tap the header** to start a run with the current run time, or to turn the device off while it's on.
+  **Hold the header** to open the entity's details.
+- **Run time**: `−` / `+` change it (hold to repeat). Tap the value to type one.
+- **Presets** set the run time and start a run of that length.
+- **During a run**: a live countdown and progress bar, **+15 min** (extend) and **Stop now**.
+- **Turned on elsewhere** (no timer): **Start N min timer** and **Turn off**.
+
+The card follows Home Assistant's dark mode. Every color can be changed in a theme with a
+`switch-timer-<name>` variable, for example:
+
+```yaml
+my-theme:
+  switch-timer-accent: "#0B84F3"        # progress bar, on border and icon
+  switch-timer-on-bg: "#E3F0FD"         # header background while on
+```
+
+Variables: `frame-bg`, `frame-border`, `text`, `text-secondary`, `header-bg`, `icon-bg`, `icon-color`,
+`pill-bg`, `pill-text`, `on-bg`, `on-border`, `on-icon-bg`, `on-icon-color`, `on-label`, `on-pill-bg`,
+`on-pill-text`, `control-bg`, `control-border`, `strong-bg`, `strong-text`, `box-bg`, `accent`,
+`accent-text`, `accent-soft`.
 
 ## Actions
 
@@ -115,6 +141,20 @@ They are kept in [`blueprints/`](blueprints) for people who don't want a custom 
 
 Restart Home Assistant (stop the task and start it again) after you change Python code. `scripts/lint` formats and lints the code with ruff.
 `scripts/test` runs the tests with coverage.
+
+### Card development
+
+The card's source is in [`frontend/`](frontend) (TypeScript + Lit). `scripts/setup` installs it and builds it once.
+
+1. Run the task **Watch card** (`npm run watch --prefix frontend`). It rebuilds
+   `custom_components/switch_timer/frontend/switch-timer-card.js` on every save.
+2. Run **Run Home Assistant on port 8123** in a second terminal. HA only loads the card if the JS file exists
+   when it starts.
+3. After a rebuild, reload the dashboard with the browser cache disabled (DevTools open → Network → **Disable cache**).
+   The card's URL carries a hash of the file taken when HA starts, so without that you'd need to restart HA.
+
+`npm run typecheck --prefix frontend` type-checks the code. `npm run build --prefix frontend` makes the
+minified build.
 
 Never run `hass` or the tests as root or with `sudo`: root-owned files in `config/` make Home Assistant fail with a
 `PermissionError`. Both scripts refuse to run as root. `scripts/develop` takes back ownership of `config/` (using
