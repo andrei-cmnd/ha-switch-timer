@@ -144,7 +144,12 @@ class SwitchTimerCard extends LitElement {
       return "unavailable";
     }
     if (state !== "on") return "off";
-    return this._endsAt() !== undefined ? "timed" : "manual";
+    // Timed only when the integration says so: an entity turned on anywhere else is
+    // manual even if the sensor still carried an end time.
+    const sensor = this._sensorState();
+    return sensor?.attributes.mode === "timed" && this._endsAt() !== undefined
+      ? "timed"
+      : "manual";
   }
 
   private _runTime(): number {
