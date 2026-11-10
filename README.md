@@ -54,8 +54,8 @@ time, and the extend step (default 15 minutes).
 | Situation | Result |
 |---|---|
 | Run started from the card or `switch_timer.start` | Turns on and starts a timed run. |
-| Turned on anywhere else | Stays on with no timer (`manual`). |
-| Turned off anywhere during a timed run | The run is cancelled. |
+| Turned on anywhere else | Stays on with no timer (`manual`), even if a run was left over from before. |
+| Turned off anywhere during a timed run | The run is cancelled. This includes coming back off after being unavailable; coming back on keeps the run. |
 | End time reached | Turns off. If the entity is unavailable then, it's turned off when it comes back. |
 | Home Assistant restarts during a timed run | The run is restored. If its end time passed meanwhile, the entity is turned off once it's available. If the entity is found off, the run is dropped. |
 | Home Assistant restarts while on without a timer | Nothing happens. |
@@ -153,7 +153,8 @@ The card's source is in [`frontend/`](frontend) (TypeScript + Lit). `scripts/set
 3. After a rebuild, reload the dashboard with the browser cache disabled (DevTools open → Network → **Disable cache**).
    The card's URL carries a hash of the file taken when HA starts, so without that you'd need to restart HA.
 
-`npm run typecheck --prefix frontend` type-checks the code. `npm run build --prefix frontend` makes the
+`npm run typecheck --prefix frontend` type-checks the code, `npm test --prefix frontend` builds the card and
+checks how it renders each state, and `npm run build --prefix frontend` makes the
 minified build.
 
 Never run `hass` or the tests as root or with `sudo`: root-owned files in `config/` make Home Assistant fail with a
