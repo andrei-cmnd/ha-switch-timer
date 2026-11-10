@@ -8,15 +8,18 @@
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -c -w --environment DEV",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node --test \"test/**/*.test.mjs\""
   },
   "dependencies": {
     "lit": "3.3.3"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "21.0.4",
     "@rollup/plugin-node-resolve": "16.0.3",
     "@rollup/plugin-terser": "1.0.0",
     "esbuild": "0.28.2",
+    "happy-dom": "21.0.4",
     "rollup": "4.64.5",
     "rollup-plugin-esbuild": "6.2.1",
     "typescript": "7.0.2"
