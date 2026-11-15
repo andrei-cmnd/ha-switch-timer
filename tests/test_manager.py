@@ -21,7 +21,7 @@ from custom_components.switch_timer.const import DOMAIN
 from custom_components.switch_timer.diagnostics import (
     async_get_config_entry_diagnostics,
 )
-from custom_components.switch_timer.manager import SwitchTimerManager
+from custom_components.switch_timer.manager import SwitchTimerManager, TimedRun
 
 from .conftest import ENDS_AT, ENTRY_ID, PUMP, RUN_TIME
 
@@ -147,6 +147,63 @@ async def test_turned_on_elsewhere_has_no_timer(
     assert _attrs(hass)["mode"] == "manual"
     await _advance(hass, freezer, timedelta(hours=5))
     assert _pump(hass) == STATE_ON
+
+
+async def test_turned_on_directly_after_off_while_unavailable(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """Regression: a run must not survive the entity coming back off.
+
+    on → unavailable → off used to keep the run, so a later plain toggle on
+    showed a countdown and turned the entity off at the old end time.
+    """
+    await _call(hass, "start", minutes=10)
+    hass.states.async_set(PUMP, STATE_UNAVAILABLE)
+    await hass.async_block_till_done()
+    await _turn(hass, "turn_off")  # comes back off
+    assert _ends_at(hass) is None
+
+    await _turn(hass, "turn_on")
+
+    assert _ends_at(hass) is None
+    assert _attrs(hass)["mode"] == "manual"
+    await _advance(hass, freezer, timedelta(minutes=15))
+    assert _pump(hass) == STATE_ON
+
+
+async def test_turned_on_directly_drops_stale_run(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_entry: MockConfigEntry
+) -> None:
+    """Turning on outside start never continues a run left over while off."""
+    now = dt_util.utcnow()
+    setup_entry.runtime_data._async_set_run(
+        TimedRun(now, now + timedelta(minutes=10), 600)
+    )
+    await hass.async_block_till_done()
+    assert _pump(hass) == STATE_OFF
+
+    await _turn(hass, "turn_on")
+
+    assert _ends_at(hass) is None
+    assert _attrs(hass)["mode"] == "manual"
+    await _advance(hass, freezer, timedelta(minutes=15))
+    assert _pump(hass) == STATE_ON
+
+
+async def test_start_keeps_run_when_on_is_confirmed_late(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """Devices that report "on" after the turn_on call returns keep their run."""
+    with patch.object(SwitchTimerManager, "_async_call"):
+        await _call(hass, "start", minutes=10)
+    assert _pump(hass) == STATE_OFF
+
+    hass.states.async_set(PUMP, STATE_ON)  # the device confirms later
+    await hass.async_block_till_done()
+
+    assert _attrs(hass)["mode"] == "timed"
+    await _advance(hass, freezer, timedelta(minutes=10))
+    assert _pump(hass) == STATE_OFF
 
 
 # --- Entity turned off anywhere during a timed run ----------------------------

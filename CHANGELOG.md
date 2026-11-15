@@ -21,3 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   off / timed / manual states, live countdown, segmented progress bar, presets, visual editor,
   dark-mode colors and `switch-timer-*` theme variables.
 - `controlled_entity_id` attribute on the ends-at sensor.
+- Card render tests (happy-dom) in CI.
+
+### Fixed
+
+- Turning the entity on from anywhere other than the card or `switch_timer.start` could continue a
+  leftover timed run (after the entity came back from `unavailable` as off), showing a countdown and
+  turning the entity off at the old end time. It is now always `manual` with no timer, and coming
+  back off cancels the run (coming back on still keeps it).
+- The card shows the countdown only when the sensor's `mode` is `timed`.
+- "Custom element not found: switch-timer-card" in HA 2026.10: the frontend replaces its element
+  registry after integration-loaded cards have run; the card now defines itself again on the new
+  registry. Failed entity lookups show an error on the card instead of breaking it.
+- Dev config: `energy` is loaded, so the card picker no longer logs `unknown_command`
+  (`energy/get_prefs`).

@@ -1,5 +1,6 @@
 import { LitElement, html, nothing, type TemplateResult } from "lit";
 
+import { defineElement } from "./register";
 import {
   DEFAULT_EXTEND_MINUTES,
   DEFAULT_ICON,
@@ -63,9 +64,13 @@ class SwitchTimerCardEditor extends LitElement {
   /** ha-form is lazy-loaded by HA; opening a built-in card editor once makes it available. */
   private async _loadHaForm(): Promise<void> {
     if (customElements.get("ha-form")) return;
-    const helpers = await (window as any).loadCardHelpers?.();
-    const card = await helpers?.createCardElement({ type: "entities", entities: [] });
-    await card?.constructor?.getConfigElement?.();
+    try {
+      const helpers = await (window as any).loadCardHelpers?.();
+      const card = await helpers?.createCardElement({ type: "entities", entities: [] });
+      await card?.constructor?.getConfigElement?.();
+    } catch (err) {
+      console.warn("switch-timer-card: could not preload ha-form", err);
+    }
     this.requestUpdate();
   }
 
@@ -139,6 +144,4 @@ class SwitchTimerCardEditor extends LitElement {
   }
 }
 
-if (!customElements.get("switch-timer-card-editor")) {
-  customElements.define("switch-timer-card-editor", SwitchTimerCardEditor);
-}
+defineElement("switch-timer-card-editor", SwitchTimerCardEditor);

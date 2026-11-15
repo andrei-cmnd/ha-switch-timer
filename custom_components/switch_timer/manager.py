@@ -102,6 +102,7 @@ class SwitchTimerManager:
         self._unsubs: list[CALLBACK_TYPE] = []
         self._unsub_timer: CALLBACK_TYPE | None = None
         self._restoring = False
+        self._awaiting_on = False
 
     @property
     def mode(self) -> str:
@@ -156,9 +157,13 @@ class SwitchTimerManager:
         """Turn the entity on and start a timed run."""
         minutes = minutes or self.run_minutes
         now = dt_util.utcnow().replace(microsecond=0)
+        state = self.hass.states.get(self.entity_id)
         self._async_set_run(
             TimedRun(now, now + timedelta(minutes=minutes), round(minutes * 60))
         )
+        # The off → on caused by this start (possibly reported after turn_on
+        # returns) belongs to the run; any other off → on drops it.
+        self._awaiting_on = state is None or state.state != STATE_ON
         _LOGGER.debug("%s: timed run of %s min started", self.entity_id, minutes)
         try:
             await self._async_call(SERVICE_TURN_ON)
@@ -199,6 +204,8 @@ class SwitchTimerManager:
         """Replace the run, persist it and (re)schedule its end."""
         self.run = run
         self._restoring = False
+        if run is None:
+            self._awaiting_on = False
         self.hass.async_create_task(
             self._store.async_save(self._data_to_save()),
             f"{DOMAIN} save {self.entity_id}",
@@ -272,25 +279,36 @@ class SwitchTimerManager:
     @callback
     def _async_state_changed(self, event: Event[EventStateChangedData]) -> None:
         old, new = event.data["old_state"], event.data["new_state"]
-        if _unavailable(new):
+        if new is None or _unavailable(new):
             self._async_notify()
             return
-        if _unavailable(old):
+        came_back = _unavailable(old)
+        if self.run is not None:
+            if new.state == STATE_OFF and (came_back or old.state == STATE_ON):
+                # Turned off, or back from unavailable as off: the run can't go on.
+                # (on → unavailable → on keeps it.)
+                _LOGGER.debug("%s: turned off, timed run cancelled", self.entity_id)
+                self._async_set_run(None)
+                return
+            if (
+                new.state == STATE_ON
+                and not came_back
+                and old.state != STATE_ON
+                and not self._awaiting_on
+                and not self._restoring
+            ):
+                # Turned on outside start: never continue a run left over while off.
+                _LOGGER.debug("%s: turned on elsewhere, run dropped", self.entity_id)
+                self._async_set_run(None)
+                return
+        if new.state == STATE_ON:
+            self._awaiting_on = False
+        if came_back:
             # Became available: settle a restored or overdue run.
             if self._restoring:
                 self._async_check_restored_run()
             else:
                 self._async_finish_if_due()
-        elif (
-            self.run is not None
-            and old is not None
-            and new is not None
-            and old.state == STATE_ON
-            and new.state == STATE_OFF
-        ):
-            _LOGGER.debug("%s: turned off, timed run cancelled", self.entity_id)
-            self._async_set_run(None)
-            return
         self._async_notify()
 
     @callback

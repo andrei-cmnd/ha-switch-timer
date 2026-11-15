@@ -54,16 +54,16 @@ time, and the extend step (default 15 minutes).
 | Situation | Result |
 |---|---|
 | Run started from the card or `switch_timer.start` | Turns on and starts a timed run. |
-| Turned on anywhere else | Stays on with no timer (`manual`). |
-| Turned off anywhere during a timed run | The run is cancelled. |
+| Turned on anywhere else | Stays on with no timer (`manual`), even if a run was left over from before. |
+| Turned off anywhere during a timed run | The run is cancelled. This includes coming back off after being unavailable; coming back on keeps the run. |
 | End time reached | Turns off. If the entity is unavailable then, it's turned off when it comes back. |
 | Home Assistant restarts during a timed run | The run is restored. If its end time passed meanwhile, the entity is turned off once it's available. If the entity is found off, the run is dropped. |
 | Home Assistant restarts while on without a timer | Nothing happens. |
 
 ## Card
 
-The integration loads the card itself; there's no Lovelace resource to add. On a dashboard, choose
-**Add card → Switch Timer**, or use YAML:
+The integration loads the card itself; there's no Lovelace resource to add. It becomes available once at
+least one Switch Timer is set up. On a dashboard, choose **Edit → Add card → By card → Switch Timer**, or use YAML:
 
 ```yaml
 type: custom:switch-timer-card
@@ -87,7 +87,7 @@ Using the card:
   **Hold the header** to open the entity's details.
 - **Run time**: `−` / `+` change it (hold to repeat). Tap the value to type one.
 - **Presets** set the run time and start a run of that length.
-- **During a run**: a live countdown and progress bar, **+15 min** (extend) and **Stop now**.
+- **During a run**: a live countdown and progress bar, **+N min** (extend, `extend_minutes`) and **Stop now**.
 - **Turned on elsewhere** (no timer): **Start N min timer** and **Turn off**.
 
 The card follows Home Assistant's dark mode. Every color can be changed in a theme with a
@@ -142,23 +142,27 @@ They are kept in [`blueprints/`](blueprints) for people who don't want a custom 
 Restart Home Assistant (stop the task and start it again) after you change Python code. `scripts/lint` formats and lints the code with ruff.
 `scripts/test` runs the tests with coverage.
 
+Never run `hass` or the tests as root or with `sudo`: root-owned files in `config/` make Home Assistant fail with a
+`PermissionError`. Both scripts refuse to run as root. `scripts/develop` takes back ownership of `config/` (using
+`sudo chown`) if it finds files there that you don't own.
+
 ### Card development
 
 The card's source is in [`frontend/`](frontend) (TypeScript + Lit). `scripts/setup` installs it and builds it once.
 
 1. Run the task **Watch card** (`npm run watch --prefix frontend`). It rebuilds
    `custom_components/switch_timer/frontend/switch-timer-card.js` on every save.
-2. Run **Run Home Assistant on port 8123** in a second terminal. HA only loads the card if the JS file exists
-   when it starts.
-3. After a rebuild, reload the dashboard with the browser cache disabled (DevTools open → Network → **Disable cache**).
+2. Run **Run Home Assistant on port 8123** in a second terminal. HA loads the card when it starts, if the JS
+   file exists and at least one Switch Timer is set up (e.g. for `switch.test_pump`).
+3. Add the card to a dashboard of your own (**Settings → Dashboards → Add dashboard**); the default Overview is
+   generated automatically. Pick **Add card → By card → Switch Timer**, or paste
+   `type: custom:switch-timer-card` / `entity: switch.test_pump` in the code editor.
+4. After a rebuild, reload the dashboard with the browser cache disabled (DevTools open → Network → **Disable cache**).
    The card's URL carries a hash of the file taken when HA starts, so without that you'd need to restart HA.
 
-`npm run typecheck --prefix frontend` type-checks the code. `npm run build --prefix frontend` makes the
-minified build.
-
-Never run `hass` or the tests as root or with `sudo`: root-owned files in `config/` make Home Assistant fail with a
-`PermissionError`. Both scripts refuse to run as root. `scripts/develop` takes back ownership of `config/` (using
-`sudo chown`) if it finds files there that you don't own.
+`npm run typecheck --prefix frontend` type-checks the code, `npm test --prefix frontend` builds the card and
+checks how it renders each state (and that it survives HA replacing its element registry), and
+`npm run build --prefix frontend` makes the minified build.
 
 ## License
 

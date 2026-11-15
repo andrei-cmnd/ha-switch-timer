@@ -42,4 +42,4 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run typecheck
-      - run: npm run build
+      - run: npm test  # builds, then renders the card in happy-dom
