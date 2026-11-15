@@ -70,7 +70,16 @@ type: custom:switch-timer-card
 entity: switch.my_pump
 ```
 
-The entity must have a Switch Timer (see [Configuration](#configuration)).
+The entity needs a Switch Timer. You can add one in [Configuration](#configuration), or right from the card:
+
+- **In the card editor**, the Entity picker lists every switch, light, fan and toggle; the text under it names
+  the ones that already have a Switch Timer. If the chosen entity has none, **Create Switch Timer** sets one up.
+- **On the dashboard**, a card for an entity without a Switch Timer shows the same **Create Switch Timer**
+  button. Users who aren't admins see "Ask an admin to set up Switch Timer for this entity".
+
+Quick setup runs the normal Switch Timer setup with the defaults: name = the entity's name, run time 30 min,
+range 1–240, step 1, extend 15. Change them later under **Configure**. Saving a card never creates
+anything by itself. Creating a Switch Timer needs admin rights.
 
 | Option | Description |
 |---|---|

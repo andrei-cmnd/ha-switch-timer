@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dark-mode colors and `switch-timer-*` theme variables.
 - `controlled_entity_id` attribute on the ends-at sensor.
 - Card render tests (happy-dom) in CI.
+- Quick setup from the card: the editor's Entity picker lists all switches, lights, fans and toggles and
+  names those with a Switch Timer; a **Create Switch Timer** button (editor, and the card's
+  "No Switch Timer" state, admins only) runs the config flow with the defaults. Non-admins are asked
+  to contact an admin.
 
 ### Fixed
 
