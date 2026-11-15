@@ -1,13 +1,16 @@
-import { LitElement, html, nothing, type TemplateResult } from "lit";
+import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 
 import { defineElement } from "./register";
+import "./setup-prompt";
 import {
   DEFAULT_EXTEND_MINUTES,
   DEFAULT_ICON,
   DEFAULT_PRESETS,
+  SUPPORTED_DOMAINS,
   type HomeAssistant,
   type SwitchTimerCardConfig,
   controlledEntities,
+  findTimerEntities,
 } from "./types";
 
 const LABELS: Record<string, string> = {
@@ -20,7 +23,6 @@ const LABELS: Record<string, string> = {
 };
 
 const HELPERS: Record<string, string> = {
-  entity: "A switch, light, fan or toggle that has a Switch Timer.",
   name: "Leave empty to use the entity's name.",
   presets: "Minutes, separated by commas.",
   extend_minutes: "Minutes added by the extend button.",
@@ -48,6 +50,19 @@ class SwitchTimerCardEditor extends LitElement {
     hass: { attribute: false },
     _config: { state: true },
   };
+
+  static override styles = css`
+    .status {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+    .has-timer {
+      color: var(--success-color, #1f7a45);
+    }
+  `;
 
   hass?: HomeAssistant;
   private _config?: SwitchTimerCardConfig;
@@ -79,7 +94,7 @@ class SwitchTimerCardEditor extends LitElement {
       {
         name: "entity",
         required: true,
-        selector: { entity: { include_entities: this.hass ? controlledEntities(this.hass) : [] } },
+        selector: { entity: { filter: [{ domain: SUPPORTED_DOMAINS }] } },
       },
       {
         type: "grid",
@@ -119,9 +134,51 @@ class SwitchTimerCardEditor extends LitElement {
       .data=${data}
       .schema=${this._schema()}
       .computeLabel=${(s: { name: string }) => LABELS[s.name] ?? s.name}
-      .computeHelper=${(s: { name: string }) => HELPERS[s.name]}
+      .computeHelper=${(s: { name: string }) =>
+        s.name === "entity" ? this._entityHelper() : HELPERS[s.name]}
       @value-changed=${this._valueChanged}
-    ></ha-form>`;
+    ></ha-form>
+    ${this._renderStatus()}`;
+  }
+
+  private _name(entityId: string): string {
+    return this.hass?.states[entityId]?.attributes.friendly_name ?? entityId;
+  }
+
+  /** Mark which entities already have a Switch Timer. */
+  private _entityHelper(): string {
+    const names = controlledEntities(this.hass!).map((id) => this._name(id)).sort();
+    if (!names.length) return "A switch, light, fan or toggle. None has a Switch Timer yet.";
+    const shown = names.slice(0, 5).join(", ");
+    const more = names.length > 5 ? ` and ${names.length - 5} more` : "";
+    return `A switch, light, fan or toggle. With a Switch Timer: ${shown}${more}.`;
+  }
+
+  private _renderStatus(): TemplateResult | typeof nothing {
+    const entityId = this._config?.entity;
+    if (!entityId || !this.hass?.states[entityId]) return nothing;
+    if (findTimerEntities(this.hass, entityId)) {
+      return html`<div class="status has-timer">✓ ${this._name(entityId)} has a Switch Timer.</div>`;
+    }
+    return html`<div class="status">
+      <div>${this._name(entityId)} has no Switch Timer yet.</div>
+      <switch-timer-setup
+        .hass=${this.hass}
+        .entityId=${entityId}
+        @switch-timer-created=${this._created}
+      ></switch-timer-setup>
+    </div>`;
+  }
+
+  private _created(): void {
+    // Re-send the same config so HA rebuilds the preview with the new entities.
+    this.dispatchEvent(
+      new CustomEvent("config-changed", {
+        detail: { config: { ...this._config } },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 
   private _valueChanged(ev: CustomEvent<{ value: FormData }>): void {
