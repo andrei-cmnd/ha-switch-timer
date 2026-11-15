@@ -4,6 +4,7 @@
 automation:
 blueprint:
 config:
+energy: # the card picker asks for energy prefs to preview the energy cards
 frontend:
 history:
 logbook:
