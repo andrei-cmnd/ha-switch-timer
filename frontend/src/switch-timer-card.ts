@@ -2,6 +2,7 @@ import { LitElement, html, nothing, type PropertyValues, type TemplateResult } f
 import { keyed } from "lit/directives/keyed.js";
 
 import "./editor";
+import "./setup-prompt";
 import { defineElement } from "./register";
 import { cardStyles, tokens } from "./styles";
 import {
@@ -360,12 +361,19 @@ class SwitchTimerCard extends LitElement {
         <div class="warning">Switch Timer card error: ${this._lookupError}</div>
       </ha-card>`;
     }
+    if (!entity) {
+      return html`<ha-card>
+        <div class="warning">Entity not found: ${this._config.entity}</div>
+      </ha-card>`;
+    }
     if (!this._timerEntities) {
+      // Admins get a one-click setup; the card switches to its normal view once HA reports
+      // the new entities.
       return html`<ha-card>
         <div class="warning">
-          No Switch Timer is set up for ${this._config.entity}. Add one in Settings → Devices &
-          services → Switch Timer.
+          No Switch Timer is set up for ${entity.attributes.friendly_name ?? this._config.entity}.
         </div>
+        <switch-timer-setup .hass=${this.hass} .entityId=${this._config.entity}></switch-timer-setup>
       </ha-card>`;
     }
     const mode = this._mode();
