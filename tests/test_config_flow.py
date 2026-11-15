@@ -6,7 +6,9 @@ from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import CONF_ENTITY_ID, CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.typing import ClientSessionGenerator
 
 from custom_components.switch_timer.const import (
     CONF_DEFAULT_RUN_TIME,
@@ -120,3 +122,80 @@ async def test_options_flow_validation(
         result["flow_id"], dict(DEFAULT_OPTIONS)
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
+
+
+# --- One-click creation from the card (same HTTP calls as frontend/src/setup.ts) ---
+
+FLOW_URL = "/api/config/config_entries/flow"
+
+
+async def test_card_quick_setup_over_http(
+    hass: HomeAssistant, pump: str, hass_client: ClientSessionGenerator
+) -> None:
+    """Start the flow and submit only entity + run time 30: defaults fill the rest."""
+    assert await async_setup_component(hass, "config", {})
+    client = await hass_client()
+
+    resp = await client.post(
+        FLOW_URL, json={"handler": DOMAIN, "show_advanced_options": False}
+    )
+    assert resp.status == 200
+    flow = await resp.json()
+    assert (flow["type"], flow["step_id"]) == ("form", "user")
+
+    resp = await client.post(
+        f"{FLOW_URL}/{flow['flow_id']}",
+        json={CONF_ENTITY_ID: PUMP, CONF_DEFAULT_RUN_TIME: 30},
+    )
+    assert resp.status == 200
+    result = await resp.json()
+    assert result["type"] == "create_entry"
+    assert result["title"] == "Pump"
+    await hass.async_block_till_done()
+
+    (entry,) = hass.config_entries.async_entries(DOMAIN)
+    assert entry.unique_id == PUMP
+    assert entry.options == {
+        CONF_RUN_TIME_MIN: 1,
+        CONF_RUN_TIME_MAX: 240,
+        CONF_RUN_TIME_STEP: 1,
+        CONF_DEFAULT_RUN_TIME: 30,
+        CONF_EXTEND_MINUTES: 15,
+    }
+    assert hass.states.get(RUN_TIME).state == "30"
+
+
+async def test_card_quick_setup_already_configured_over_http(
+    hass: HomeAssistant,
+    setup_entry: MockConfigEntry,
+    hass_client: ClientSessionGenerator,
+) -> None:
+    """A second Switch Timer for the same entity aborts with already_configured."""
+    assert await async_setup_component(hass, "config", {})
+    client = await hass_client()
+
+    flow = await (await client.post(FLOW_URL, json={"handler": DOMAIN})).json()
+    resp = await client.post(
+        f"{FLOW_URL}/{flow['flow_id']}",
+        json={CONF_ENTITY_ID: PUMP, CONF_DEFAULT_RUN_TIME: 30},
+    )
+    result = await resp.json()
+
+    assert (result["type"], result["reason"]) == ("abort", "already_configured")
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 1
+
+
+async def test_card_quick_setup_needs_admin(
+    hass: HomeAssistant,
+    pump: str,
+    hass_client: ClientSessionGenerator,
+    hass_read_only_access_token: str,
+) -> None:
+    """Non-admins cannot start the flow (the card shows "Ask an admin…" instead)."""
+    assert await async_setup_component(hass, "config", {})
+    client = await hass_client(hass_read_only_access_token)
+
+    resp = await client.post(FLOW_URL, json={"handler": DOMAIN})
+
+    assert resp.status == 401
+    assert hass.config_entries.async_entries(DOMAIN) == []
