@@ -2,6 +2,7 @@ import { LitElement, html, nothing, type PropertyValues, type TemplateResult } f
 import { keyed } from "lit/directives/keyed.js";
 
 import "./editor";
+import { defineElement } from "./register";
 import { cardStyles, tokens } from "./styles";
 import {
   DEFAULT_EXTEND_MINUTES,
@@ -39,6 +40,7 @@ class SwitchTimerCard extends LitElement {
   private _localRunTime?: number;
 
   private _timerEntities?: TimerEntities;
+  private _lookupError?: string;
   private _lookupKey?: unknown;
   private _tick?: number;
   private _bar?: { key: string; style: string };
@@ -55,7 +57,11 @@ class SwitchTimerCard extends LitElement {
   }
 
   static getStubConfig(hass: HomeAssistant): Partial<SwitchTimerCardConfig> {
-    return { entity: controlledEntities(hass)[0] ?? "" };
+    try {
+      return { entity: controlledEntities(hass)[0] ?? "" };
+    } catch {
+      return { entity: "" };
+    }
   }
 
   setConfig(config: SwitchTimerCardConfig): void {
@@ -98,7 +104,13 @@ class SwitchTimerCard extends LitElement {
     const key = `${this._config.entity}|${Object.keys(this.hass.entities ?? {}).length}`;
     if (changed.has("_config") || this._lookupKey !== key || !this._timerEntities) {
       this._lookupKey = key;
-      this._timerEntities = findTimerEntities(this.hass, this._config.entity);
+      try {
+        this._timerEntities = findTimerEntities(this.hass, this._config.entity);
+        this._lookupError = undefined;
+      } catch (err) {
+        this._timerEntities = undefined;
+        this._lookupError = String(err);
+      }
     }
 
     // Drop the local run time once HA reports it (and nothing is held).
@@ -343,6 +355,11 @@ class SwitchTimerCard extends LitElement {
   protected override render(): TemplateResult | typeof nothing {
     if (!this.hass || !this._config) return nothing;
     const entity = this._entityState();
+    if (this._lookupError) {
+      return html`<ha-card>
+        <div class="warning">Switch Timer card error: ${this._lookupError}</div>
+      </ha-card>`;
+    }
     if (!this._timerEntities) {
       return html`<ha-card>
         <div class="warning">
@@ -478,9 +495,7 @@ class SwitchTimerCard extends LitElement {
   }
 }
 
-if (!customElements.get("switch-timer-card")) {
-  customElements.define("switch-timer-card", SwitchTimerCard);
-}
+defineElement("switch-timer-card", SwitchTimerCard);
 
 declare global {
   interface Window {
