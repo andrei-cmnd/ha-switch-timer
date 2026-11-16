@@ -1,7 +1,7 @@
 import { LitElement, css, html, nothing, type TemplateResult } from "lit";
 
+import { ensureTimer } from "./ensure";
 import { defineElement } from "./register";
-import "./setup-prompt";
 import {
   DEFAULT_EXTEND_MINUTES,
   DEFAULT_ICON,
@@ -49,6 +49,7 @@ class SwitchTimerCardEditor extends LitElement {
   static override properties = {
     hass: { attribute: false },
     _config: { state: true },
+    _setupError: { state: true },
   };
 
   static override styles = css`
@@ -59,6 +60,9 @@ class SwitchTimerCardEditor extends LitElement {
       margin-top: 16px;
       font-size: 14px;
     }
+    .error {
+      color: var(--error-color, #db4437);
+    }
     .has-timer {
       color: var(--success-color, #1f7a45);
     }
@@ -66,6 +70,8 @@ class SwitchTimerCardEditor extends LitElement {
 
   hass?: HomeAssistant;
   private _config?: SwitchTimerCardConfig;
+  private _setupAttempted = new Set<string>();
+  private _setupError?: string;
 
   setConfig(config: SwitchTimerCardConfig): void {
     this._config = config;
@@ -154,20 +160,46 @@ class SwitchTimerCardEditor extends LitElement {
     return `A switch, light, fan or toggle. With a Switch Timer: ${shown}${more}.`;
   }
 
+  protected override willUpdate(): void {
+    this._maybeCreateTimer();
+  }
+
+  /** Picking an entity without a timer creates one (admins; once per entity). */
+  private _maybeCreateTimer(): void {
+    const entityId = this._config?.entity;
+    if (
+      !this.hass ||
+      !entityId ||
+      !this.hass.states[entityId] ||
+      !this.hass.user?.is_admin ||
+      this._setupAttempted.has(entityId) ||
+      findTimerEntities(this.hass, entityId)
+    ) {
+      return;
+    }
+    this._setupAttempted.add(entityId);
+    this._setupError = undefined;
+    void ensureTimer(this.hass, entityId).then((result) => {
+      if (this._config?.entity !== entityId) return;
+      if (result.ok) this._created();
+      else this._setupError = result.message;
+    });
+  }
+
   private _renderStatus(): TemplateResult | typeof nothing {
     const entityId = this._config?.entity;
     if (!entityId || !this.hass?.states[entityId]) return nothing;
+    const name = this._name(entityId);
     if (findTimerEntities(this.hass, entityId)) {
-      return html`<div class="status has-timer">✓ ${this._name(entityId)} has a Switch Timer.</div>`;
+      return html`<div class="status has-timer">✓ ${name} has a Switch Timer.</div>`;
     }
-    return html`<div class="status">
-      <div>${this._name(entityId)} has no Switch Timer yet.</div>
-      <switch-timer-setup
-        .hass=${this.hass}
-        .entityId=${entityId}
-        @switch-timer-created=${this._created}
-      ></switch-timer-setup>
-    </div>`;
+    if (!this.hass.user?.is_admin) {
+      return html`<div class="status">${name} has no Switch Timer yet. Ask an admin to pick this switch once.</div>`;
+    }
+    if (this._setupError) {
+      return html`<div class="status error" role="alert">${this._setupError}</div>`;
+    }
+    return html`<div class="status">Setting up Switch Timer for ${name}…</div>`;
   }
 
   private _created(): void {

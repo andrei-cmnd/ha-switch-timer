@@ -2,7 +2,7 @@ import { LitElement, html, nothing, type PropertyValues, type TemplateResult } f
 import { keyed } from "lit/directives/keyed.js";
 
 import "./editor";
-import "./setup-prompt";
+import { ensureTimer } from "./ensure";
 import { defineElement } from "./register";
 import { cardStyles, tokens } from "./styles";
 import {
@@ -30,6 +30,7 @@ class SwitchTimerCard extends LitElement {
     _config: { state: true },
     _now: { state: true },
     _localRunTime: { state: true },
+    _setupError: { state: true },
   };
 
   static override styles = [tokens, cardStyles];
@@ -42,6 +43,9 @@ class SwitchTimerCard extends LitElement {
 
   private _timerEntities?: TimerEntities;
   private _lookupError?: string;
+  /** Entities this card already tried to create a timer for (once per entity). */
+  private _setupAttempted = new Set<string>();
+  private _setupError?: string;
   private _lookupKey?: unknown;
   private _tick?: number;
   private _bar?: { key: string; style: string };
@@ -66,7 +70,7 @@ class SwitchTimerCard extends LitElement {
   }
 
   setConfig(config: SwitchTimerCardConfig): void {
-    if (!config?.entity) throw new Error("Set the entity controlled by a Switch Timer");
+    if (!config) throw new Error("Invalid configuration");
     if (
       config.presets !== undefined &&
       (!Array.isArray(config.presets) ||
@@ -114,6 +118,8 @@ class SwitchTimerCard extends LitElement {
       }
     }
 
+    this._maybeCreateTimer();
+
     // Drop the local run time once HA reports it (and nothing is held).
     const number = this._numberState();
     if (
@@ -124,6 +130,30 @@ class SwitchTimerCard extends LitElement {
     ) {
       this._localRunTime = undefined;
     }
+  }
+
+  /**
+   * An admin's card for an entity without a timer creates one (once per entity).
+   * Nothing else to do: the card switches to its normal view when HA reports the entities.
+   */
+  private _maybeCreateTimer(): void {
+    const entityId = this._config?.entity;
+    if (
+      !this.hass ||
+      !entityId ||
+      this._timerEntities ||
+      this._lookupError ||
+      !this.hass.states[entityId] ||
+      !this.hass.user?.is_admin ||
+      this._setupAttempted.has(entityId)
+    ) {
+      return;
+    }
+    this._setupAttempted.add(entityId);
+    this._setupError = undefined;
+    void ensureTimer(this.hass, entityId).then((result) => {
+      if (!result.ok && this._config?.entity === entityId) this._setupError = result.message;
+    });
   }
 
   protected override updated(): void {
@@ -355,6 +385,11 @@ class SwitchTimerCard extends LitElement {
 
   protected override render(): TemplateResult | typeof nothing {
     if (!this.hass || !this._config) return nothing;
+    if (!this._config.entity) {
+      return html`<ha-card>
+        <div class="warning">Pick a switch, light, fan or toggle in the card editor.</div>
+      </ha-card>`;
+    }
     const entity = this._entityState();
     if (this._lookupError) {
       return html`<ha-card>
@@ -367,14 +402,11 @@ class SwitchTimerCard extends LitElement {
       </ha-card>`;
     }
     if (!this._timerEntities) {
-      // Admins get a one-click setup; the card switches to its normal view once HA reports
-      // the new entities.
-      return html`<ha-card>
-        <div class="warning">
-          No Switch Timer is set up for ${entity.attributes.friendly_name ?? this._config.entity}.
-        </div>
-        <switch-timer-setup .hass=${this.hass} .entityId=${this._config.entity}></switch-timer-setup>
-      </ha-card>`;
+      const entityName = entity.attributes.friendly_name ?? this._config.entity;
+      const text = !this.hass.user?.is_admin
+        ? `${entityName} has no Switch Timer yet. Ask an admin to pick this switch once.`
+        : (this._setupError ?? `Setting up Switch Timer for ${entityName}…`);
+      return html`<ha-card><div class="warning" role="status">${text}</div></ha-card>`;
     }
     const mode = this._mode();
     const on = mode === "timed" || mode === "manual";

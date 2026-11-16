@@ -19,7 +19,7 @@ export interface HomeAssistant {
   locale: { language: string; time_format?: string };
   themes: { darkMode?: boolean };
   user?: { is_admin: boolean };
-  callApi<T = unknown>(method: string, path: string, data?: Record<string, unknown>): Promise<T>;
+  callWS<T = unknown>(message: Record<string, unknown>): Promise<T>;
   callService(
     domain: string,
     service: string,
