@@ -1,4 +1,9 @@
-"""Config flow for the Switch Timer integration."""
+"""Config flow for the Switch Timer integration.
+
+The only thing a user sets up is the hub (no fields, just Submit). Timers are config
+subentries created by the card; no subentry flow is offered, so there is no manual
+"Add" button. The hub's options flow edits one timer's settings.
+"""
 
 from __future__ import annotations
 
@@ -8,17 +13,16 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlowWithReload,
+    OptionsFlow,
 )
-from homeassistant.const import ATTR_FRIENDLY_NAME, CONF_ENTITY_ID, CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
-    EntitySelector,
-    EntitySelectorConfig,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
-    TextSelector,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
 )
 import voluptuous as vol
 
@@ -29,18 +33,24 @@ from .const import (
     CONF_RUN_TIME_MIN,
     CONF_RUN_TIME_STEP,
     DEFAULT_OPTIONS,
-    DEFAULT_RUN_TIME,
-    DEFAULT_RUN_TIME_MAX,
-    DEFAULT_RUN_TIME_MIN,
     DOMAIN,
-    SUPPORTED_DOMAINS,
+    SUBENTRY_TYPE_TIMER,
+)
+
+CONF_TIMER = "timer"
+SETTINGS = (
+    CONF_RUN_TIME_MIN,
+    CONF_RUN_TIME_MAX,
+    CONF_RUN_TIME_STEP,
+    CONF_DEFAULT_RUN_TIME,
+    CONF_EXTEND_MINUTES,
 )
 
 
-def _minutes(min_value: float = 1, max_value: float = 1440) -> NumberSelector:
+def _minutes(max_value: float = 1440) -> NumberSelector:
     return NumberSelector(
         NumberSelectorConfig(
-            min=min_value,
+            min=1,
             max=max_value,
             step=1,
             mode=NumberSelectorMode.BOX,
@@ -49,19 +59,7 @@ def _minutes(min_value: float = 1, max_value: float = 1440) -> NumberSelector:
     )
 
 
-USER_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_ENTITY_ID): EntitySelector(
-            EntitySelectorConfig(domain=SUPPORTED_DOMAINS)
-        ),
-        vol.Optional(CONF_NAME): TextSelector(),
-        vol.Required(CONF_DEFAULT_RUN_TIME, default=DEFAULT_RUN_TIME): _minutes(
-            DEFAULT_RUN_TIME_MIN, DEFAULT_RUN_TIME_MAX
-        ),
-    }
-)
-
-OPTIONS_SCHEMA = vol.Schema(
+TIMER_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_RUN_TIME_MIN): _minutes(),
         vol.Required(CONF_RUN_TIME_MAX): _minutes(),
@@ -73,30 +71,17 @@ OPTIONS_SCHEMA = vol.Schema(
 
 
 class SwitchTimerConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Add a Switch Timer for one entity."""
+    """Set up the Switch Timer hub (single entry, see manifest)."""
 
     VERSION = 1
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Pick the entity, a name and the default run time."""
+        """Confirm; nothing to fill in."""
         if user_input is not None:
-            entity_id: str = user_input[CONF_ENTITY_ID]
-            await self.async_set_unique_id(entity_id)
-            self._abort_if_unique_id_configured()
-            name = user_input.get(CONF_NAME, "").strip()
-            if not name and (state := self.hass.states.get(entity_id)):
-                name = state.attributes.get(ATTR_FRIENDLY_NAME, "")
-            return self.async_create_entry(
-                title=name or entity_id,
-                data={CONF_ENTITY_ID: entity_id},
-                options={
-                    **DEFAULT_OPTIONS,
-                    CONF_DEFAULT_RUN_TIME: int(user_input[CONF_DEFAULT_RUN_TIME]),
-                },
-            )
-        return self.async_show_form(step_id="user", data_schema=USER_SCHEMA)
+            return self.async_create_entry(title="Switch Timer", data={})
+        return self.async_show_form(step_id="user")
 
     @staticmethod
     @callback
@@ -105,31 +90,80 @@ class SwitchTimerConfigFlow(ConfigFlow, domain=DOMAIN):
         return SwitchTimerOptionsFlow()
 
 
-class SwitchTimerOptionsFlow(OptionsFlowWithReload):
-    """Edit the run-time range, default run time and extend step."""
+class SwitchTimerOptionsFlow(OptionsFlow):
+    """Edit the settings of one timer."""
+
+    def __init__(self) -> None:
+        """Initialize the flow."""
+        self._timer_id: str | None = None
+
+    def _timers(self) -> dict[str, Any]:
+        return {
+            subentry_id: subentry
+            for subentry_id, subentry in self.config_entry.subentries.items()
+            if subentry.subentry_type == SUBENTRY_TYPE_TIMER
+        }
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Manage the options."""
+        """Pick the timer to edit."""
+        timers = self._timers()
+        if not timers:
+            return self.async_abort(reason="no_timers")
+        if user_input is not None:
+            self._timer_id = user_input[CONF_TIMER]
+            return await self.async_step_timer()
+        options = sorted(
+            (
+                SelectOptionDict(value=subentry_id, label=subentry.title)
+                for subentry_id, subentry in timers.items()
+            ),
+            key=lambda option: option["label"].lower(),
+        )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_TIMER): SelectSelector(
+                        SelectSelectorConfig(options=options)
+                    )
+                }
+            ),
+        )
+
+    async def async_step_timer(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Edit run-time range, default run time and extend step."""
+        subentry = self._timers().get(self._timer_id or "")
+        if subentry is None:
+            return self.async_abort(reason="no_timers")
         errors: dict[str, str] = {}
         if user_input is not None:
-            options = {key: int(value) for key, value in user_input.items()}
-            if options[CONF_RUN_TIME_MIN] >= options[CONF_RUN_TIME_MAX]:
+            values = {key: int(user_input[key]) for key in SETTINGS}
+            if values[CONF_RUN_TIME_MIN] >= values[CONF_RUN_TIME_MAX]:
                 errors[CONF_RUN_TIME_MAX] = "max_not_above_min"
             elif not (
-                options[CONF_RUN_TIME_MIN]
-                <= options[CONF_DEFAULT_RUN_TIME]
-                <= options[CONF_RUN_TIME_MAX]
+                values[CONF_RUN_TIME_MIN]
+                <= values[CONF_DEFAULT_RUN_TIME]
+                <= values[CONF_RUN_TIME_MAX]
             ):
                 errors[CONF_DEFAULT_RUN_TIME] = "default_out_of_range"
             else:
-                return self.async_create_entry(data=options)
+                self.hass.config_entries.async_update_subentry(
+                    self.config_entry, subentry, data={**subentry.data, **values}
+                )
+                return self.async_create_entry(data=dict(self.config_entry.options))
+        current = {
+            **DEFAULT_OPTIONS,
+            **{k: subentry.data[k] for k in SETTINGS if k in subentry.data},
+        }
         return self.async_show_form(
-            step_id="init",
+            step_id="timer",
             data_schema=self.add_suggested_values_to_schema(
-                OPTIONS_SCHEMA,
-                user_input or {**DEFAULT_OPTIONS, **self.config_entry.options},
+                TIMER_SCHEMA, user_input or current
             ),
+            description_placeholders={"name": subentry.title},
             errors=errors,
         )

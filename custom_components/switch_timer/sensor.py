@@ -11,6 +11,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import ATTR_CONTROLLED_ENTITY_ID, ATTR_DURATION, ATTR_MODE, ATTR_STARTED_AT
 from .entity import SwitchTimerEntity
+from .manager import SwitchTimerManager
 
 if TYPE_CHECKING:
     from . import SwitchTimerConfigEntry
@@ -23,21 +24,24 @@ async def async_setup_entry(
     entry: SwitchTimerConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the ends-at sensor."""
-    async_add_entities([EndsAtSensor(entry)])
+    """Set up an ends-at sensor for every timer, now and when timers are added."""
+    entry.runtime_data.async_register_platform(
+        lambda manager: async_add_entities(
+            [EndsAtSensor(manager)], config_subentry_id=manager.subentry_id
+        )
+    )
 
 
 class EndsAtSensor(SwitchTimerEntity, SensorEntity):
     """When the current timed run ends; None without one."""
 
     _attr_device_class = SensorDeviceClass.TIMESTAMP
-    _attr_should_poll = False
     # Static link for the card; no need to store it in the recorder.
     _unrecorded_attributes = frozenset({ATTR_CONTROLLED_ENTITY_ID})
 
-    def __init__(self, entry: SwitchTimerConfigEntry) -> None:
+    def __init__(self, manager: SwitchTimerManager) -> None:
         """Initialize the sensor."""
-        super().__init__(entry, "ends_at")
+        super().__init__(manager, "ends_at")
 
     async def async_added_to_hass(self) -> None:
         """Follow the manager."""

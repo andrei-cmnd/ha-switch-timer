@@ -24,9 +24,9 @@ from pytest_homeassistant_custom_component.common import (
 
 from custom_components.switch_timer.const import DOMAIN
 
-from .conftest import ENDS_AT, ENTRY_ID, PUMP
+from .conftest import ENDS_AT, PUMP, TIMER_ID
 
-STORAGE_KEY = f"{DOMAIN}.{ENTRY_ID}"
+STORAGE_KEY = f"{DOMAIN}.{TIMER_ID}"
 
 
 def _saved_run(hass_storage: dict[str, Any], ends_in: timedelta) -> None:

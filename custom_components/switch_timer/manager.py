@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     SERVICE_TURN_OFF,
@@ -78,28 +78,34 @@ class TimedRun:
         return cls(started_at, ends_at, duration)
 
 
-def storage_key(entry_id: str) -> str:
-    """Return the storage key for a config entry."""
-    return f"{DOMAIN}.{entry_id}"
+def storage_key(subentry_id: str) -> str:
+    """Return the storage key for a timer (config subentry)."""
+    return f"{DOMAIN}.{subentry_id}"
 
 
 class SwitchTimerManager:
-    """Own the timed run of one controlled entity."""
+    """Own the timed run of one controlled entity (one timer subentry of the hub)."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    def __init__(
+        self, hass: HomeAssistant, entry: ConfigEntry, subentry: ConfigSubentry
+    ) -> None:
         """Initialize the manager."""
         self.hass = hass
         self.entry = entry
-        self.entity_id: str = entry.data[ATTR_ENTITY_ID]
+        self.subentry_id = subentry.subentry_id
+        self.title = subentry.title
+        self.config: dict[str, Any] = dict(subentry.data)
+        self.entity_id: str = self.config[ATTR_ENTITY_ID]
         self.run: TimedRun | None = None
-        self.run_minutes: float = entry.options.get(
+        self.run_minutes: float = self.config.get(
             CONF_DEFAULT_RUN_TIME, DEFAULT_RUN_TIME
         )
         self._store: Store[dict[str, Any]] = Store(
-            hass, STORAGE_VERSION, storage_key(entry.entry_id)
+            hass, STORAGE_VERSION, storage_key(subentry.subentry_id)
         )
         self._listeners: list[CALLBACK_TYPE] = []
         self._unsubs: list[CALLBACK_TYPE] = []
+        self._unsub_state: CALLBACK_TYPE | None = None
         self._unsub_timer: CALLBACK_TYPE | None = None
         self._restoring = False
         self._awaiting_on = False
@@ -115,17 +121,13 @@ class SwitchTimerManager:
     @property
     def extend_minutes(self) -> int:
         """Return the default number of minutes added by extend."""
-        return self.entry.options.get(CONF_EXTEND_MINUTES, DEFAULT_EXTEND_MINUTES)
+        return self.config.get(CONF_EXTEND_MINUTES, DEFAULT_EXTEND_MINUTES)
 
     async def async_setup(self) -> None:
         """Restore a saved run and start listening to the controlled entity."""
         if (data := await self._store.async_load()) and data.get("run"):
             self.run = TimedRun.from_dict(data["run"])
-        self._unsubs.append(
-            async_track_state_change_event(
-                self.hass, self.entity_id, self._async_state_changed
-            )
-        )
+        self._async_track_entity()
         if self.run is not None:
             _LOGGER.debug(
                 "%s: restored run ending %s", self.entity_id, self.run.ends_at
@@ -135,11 +137,36 @@ class SwitchTimerManager:
             self._unsubs.append(async_at_started(self.hass, self._async_started))
 
     @callback
+    def _async_track_entity(self) -> None:
+        if self._unsub_state is not None:
+            self._unsub_state()
+        self._unsub_state = async_track_state_change_event(
+            self.hass, self.entity_id, self._async_state_changed
+        )
+
+    @callback
+    def async_update_config(self, subentry: ConfigSubentry) -> None:
+        """Apply edited settings, or follow a renamed controlled entity."""
+        self.title = subentry.title
+        self.config = dict(subentry.data)
+        if self.config[ATTR_ENTITY_ID] != self.entity_id:
+            self.entity_id = self.config[ATTR_ENTITY_ID]
+            self._async_track_entity()
+        self._async_notify()
+
+    @callback
     def async_unload(self) -> None:
         """Stop timers and listeners; the saved run is kept for the next setup."""
         self._async_unschedule()
+        if self._unsub_state is not None:
+            self._unsub_state()
+            self._unsub_state = None
         while self._unsubs:
             self._unsubs.pop()()
+
+    async def async_remove_storage(self) -> None:
+        """Delete the saved run (the timer itself was removed)."""
+        await self._store.async_remove()
 
     @callback
     def async_add_listener(self, update: CALLBACK_TYPE) -> CALLBACK_TYPE:
@@ -320,6 +347,9 @@ class SwitchTimerManager:
         """Return the current state for diagnostics."""
         state = self.hass.states.get(self.entity_id)
         return {
+            "title": self.title,
+            "entity_id": self.entity_id,
+            "config": self.config,
             "mode": self.mode,
             "run": self.run.as_dict() if self.run else None,
             "run_minutes": self.run_minutes,

@@ -2,27 +2,25 @@
   "config": {
     "step": {
       "user": {
-        "title": "Add a switch timer",
-        "description": "Pick the device to turn off automatically after a run started from the card.",
-        "data": {
-          "entity_id": "Entity",
-          "name": "Name",
-          "default_run_time": "Default run time"
-        },
-        "data_description": {
-          "entity_id": "The switch, light, fan or toggle helper to control.",
-          "name": "Leave empty to use the entity's name.",
-          "default_run_time": "Minutes a run lasts when no time is given."
-        }
+        "title": "Switch Timer",
+        "description": "Adds Switch Timer to Home Assistant. You only do this once: timers are created automatically when you pick a switch in a Switch Timer card."
       }
     },
     "abort": {
-      "already_configured": "This entity already has a switch timer."
+      "single_instance_allowed": "Switch Timer is already set up."
     }
   },
   "options": {
     "step": {
       "init": {
+        "title": "Timer settings",
+        "description": "Pick the timer to change.",
+        "data": {
+          "timer": "Timer"
+        }
+      },
+      "timer": {
+        "title": "{name}",
         "data": {
           "run_time_min": "Minimum run time",
           "run_time_max": "Maximum run time",
@@ -42,6 +40,9 @@
     "error": {
       "max_not_above_min": "The maximum must be greater than the minimum.",
       "default_out_of_range": "The default run time must be between the minimum and the maximum."
+    },
+    "abort": {
+      "no_timers": "There are no timers yet. Pick a switch in a Switch Timer card to create one."
     }
   },
   "entity": {

@@ -23,7 +23,7 @@ from custom_components.switch_timer.diagnostics import (
 )
 from custom_components.switch_timer.manager import SwitchTimerManager, TimedRun
 
-from .conftest import ENDS_AT, ENTRY_ID, PUMP, RUN_TIME
+from .conftest import ENDS_AT, PUMP, RUN_TIME, TIMER_ID
 
 pytestmark = pytest.mark.usefixtures("whole_second", "setup_entry")
 
@@ -176,7 +176,7 @@ async def test_turned_on_directly_drops_stale_run(
 ) -> None:
     """Turning on outside start never continues a run left over while off."""
     now = dt_util.utcnow()
-    setup_entry.runtime_data._async_set_run(
+    setup_entry.runtime_data.managers[TIMER_ID]._async_set_run(
         TimedRun(now, now + timedelta(minutes=10), 600)
     )
     await hass.async_block_till_done()
@@ -354,11 +354,11 @@ async def test_remove_deletes_saved_run(
     """Removing the entry deletes its storage file."""
     await _call(hass, "start", minutes=10)
     await hass.async_block_till_done()
-    assert hass_storage[f"{DOMAIN}.{ENTRY_ID}"]["data"]["run"] is not None
+    assert hass_storage[f"{DOMAIN}.{TIMER_ID}"]["data"]["run"] is not None
 
     await hass.config_entries.async_remove(setup_entry.entry_id)
     await hass.async_block_till_done()
-    assert f"{DOMAIN}.{ENTRY_ID}" not in hass_storage
+    assert f"{DOMAIN}.{TIMER_ID}" not in hass_storage
 
 
 async def test_diagnostics(hass: HomeAssistant, setup_entry: MockConfigEntry) -> None:
@@ -366,6 +366,8 @@ async def test_diagnostics(hass: HomeAssistant, setup_entry: MockConfigEntry) ->
     await _call(hass, "start", minutes=10)
     diag = await async_get_config_entry_diagnostics(hass, setup_entry)
 
-    assert diag["entry"]["data"] == {ATTR_ENTITY_ID: PUMP}
-    assert diag["manager"]["mode"] == "timed"
-    assert diag["manager"]["run"]["duration"] == 600
+    timer = diag["timers"][TIMER_ID]
+    assert timer["entity_id"] == PUMP
+    assert timer["config"]["extend_minutes"] == 15
+    assert timer["mode"] == "timed"
+    assert timer["run"]["duration"] == 600

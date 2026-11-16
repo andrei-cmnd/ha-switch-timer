@@ -10,5 +10,6 @@
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/andrei-cmnd/ha-switch-timer/issues",
   "requirements": [],
+  "single_config_entry": true,
   "version": "0.1.0-dev"
 }
