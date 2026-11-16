@@ -11,8 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Repository scaffold: integration stub, dev container with a Home Assistant dev instance,
   CI validation (hassfest, HACS, ruff), README skeleton and the prototype blueprints.
-- Integration: config flow and options flow, one entry per controlled entity
-  (switch, light, fan, input_boolean).
+- Integration: a single "Switch Timer" entry, added once (no fields, just Submit). Each controlled
+  entity (switch, light, fan, input_boolean) gets a timer, a config subentry with its own device,
+  created automatically when an admin picks the entity in a Switch Timer card. Non-admins are asked
+  to have an admin pick the switch once. **Configure** on the entry edits one timer's settings.
 - Timed runs that survive restarts, with `number.<name>_run_time` and `sensor.<name>_ends_at`.
 - Actions `switch_timer.start`, `switch_timer.extend` and `switch_timer.stop`.
 - Diagnostics.
@@ -22,10 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dark-mode colors and `switch-timer-*` theme variables.
 - `controlled_entity_id` attribute on the ends-at sensor.
 - Card render tests (happy-dom) in CI.
-- Quick setup from the card: the editor's Entity picker lists all switches, lights, fans and toggles and
-  names those with a Switch Timer; a **Create Switch Timer** button (editor, and the card's
-  "No Switch Timer" state, admins only) runs the config flow with the defaults. Non-admins are asked
-  to contact an admin.
+- Card editor: the Entity picker lists all switches, lights, fans and toggles and names those that
+  already have a timer.
+- Admin-only websocket command `switch_timer/ensure_timer` used by the card to create timers.
+- A timer is removed automatically when its controlled entity is deleted, and follows an entity ID rename.
 
 ### Fixed
 

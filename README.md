@@ -19,35 +19,34 @@ A Home Assistant integration (2026.10+) with a bundled Lovelace card, `custom:sw
 - Extend a running timer (`+15 min` by default) or stop it right away.
 - Survives restarts: if a timed run ended while Home Assistant was down, the device is turned off as soon as it becomes available.
 - Works with `switch`, `light`, `fan` and `input_boolean` entities.
+- No per-switch setup: pick a switch in the card and its timer is created automatically.
 - The card is registered automatically. It needs no extra Lovelace resource and no button-card, circular-timer-card or card-mod.
 
 ## Installation
 
-### HACS (custom repository)
+1. Install with HACS (custom repository). _Details: TODO (v0.1.0)._
+2. Restart Home Assistant.
+3. Once: **Settings → Devices & services → Add integration → Switch Timer → Submit**. There is nothing to fill in.
 
-_TODO (v0.1.0)._
-
-### Manual
-
-_TODO (v0.1.0)._
+That's all the setup there is. Timers are created by picking a switch in a Switch Timer card (see [Card](#card)).
 
 ## Configuration
 
-Go to **Settings → Devices & services → Add integration → Switch Timer** and fill in:
-
-- **Entity**: the switch, light, fan or toggle helper to control. Each entity can have one Switch Timer.
-- **Name**: optional. Defaults to the entity's name.
-- **Default run time**: how many minutes a run lasts when no time is given (default 30).
-
-Each entry creates a device with two entities:
+Every switch, light, fan or toggle picked in a card gets its own timer: a device named after the entity, with two
+entities:
 
 | Entity | Description |
 |---|---|
 | `number.<name>_run_time` | Run time in minutes, used when a run starts without `minutes`. Kept across restarts. |
 | `sensor.<name>_ends_at` | When the current timed run ends; `unknown` when there is none. Attributes: `mode` (`off`, `timed` or `manual`), `duration` (seconds, including extensions), `started_at` and `controlled_entity_id`. |
 
-**Configure** on the entry sets the run time's minimum, maximum and step (default 1–240, step 1), the default run
-time, and the extend step (default 15 minutes).
+New timers use the defaults: run time 30 min, range 1–240, step 1, extend 15. To change a timer, open
+**Settings → Devices & services → Switch Timer → Configure**, pick the timer and edit its minimum, maximum and step,
+default run time and extend step.
+
+To remove a timer: **Settings → Devices & services → Switch Timer → ⋮** next to the timer → **Delete**.
+A timer is also removed automatically when its switch is deleted from
+Home Assistant, and follows the switch if its entity ID is renamed.
 
 ### How it behaves
 
@@ -62,24 +61,23 @@ time, and the extend step (default 15 minutes).
 
 ## Card
 
-The integration loads the card itself; there's no Lovelace resource to add. It becomes available once at
-least one Switch Timer is set up. On a dashboard, choose **Edit → Add card → By card → Switch Timer**, or use YAML:
+The integration loads the card itself; there's no Lovelace resource to add. It is available once the
+integration is added (Installation step 3). On a dashboard, choose **Edit → Add card → By card → Switch Timer**, or use YAML:
 
 ```yaml
 type: custom:switch-timer-card
 entity: switch.my_pump
 ```
 
-The entity needs a Switch Timer. You can add one in [Configuration](#configuration), or right from the card:
+Picking the entity is the only setup:
 
 - **In the card editor**, the Entity picker lists every switch, light, fan and toggle; the text under it names
-  the ones that already have a Switch Timer. If the chosen entity has none, **Create Switch Timer** sets one up.
-- **On the dashboard**, a card for an entity without a Switch Timer shows the same **Create Switch Timer**
-  button. Users who aren't admins see "Ask an admin to set up Switch Timer for this entity".
+  the ones that already have a timer. When an admin picks one without a timer, it is created right away.
+- **On the dashboard**, a card for an entity without a timer creates it when an admin opens the dashboard.
+- Users who aren't admins see "Ask an admin to pick this switch once."
 
-Quick setup runs the normal Switch Timer setup with the defaults: name = the entity's name, run time 30 min,
-range 1–240, step 1, extend 15. Change them later under **Configure**. Saving a card never creates
-anything by itself. Creating a Switch Timer needs admin rights.
+A picked entity keeps its timer even if you then cancel the editor; delete it as described in
+[Configuration](#configuration) if you don't want it.
 
 | Option | Description |
 |---|---|
@@ -115,7 +113,7 @@ Variables: `frame-bg`, `frame-border`, `text`, `text-secondary`, `header-bg`, `i
 
 ## Actions
 
-Target either the controlled entity or one of the Switch Timer's own entities.
+Target either the controlled entity or one of its timer's entities.
 
 | Action | Description |
 |---|---|
@@ -146,7 +144,7 @@ They are kept in [`blueprints/`](blueprints) for people who don't want a custom 
 1. Open the repo in VS Code and choose **Reopen in Container**. This needs Docker and the Dev Containers extension.
 2. Run the task **Run Home Assistant on port 8123** (or `scripts/develop`).
 3. Open <http://localhost:8123> and finish onboarding. `custom_components/switch_timer` is loaded from the
-   working tree, and a test device `switch.test_pump` is available.
+   working tree, and test devices `switch.test_pump` and `fan.test_fan` are available.
 
 Restart Home Assistant (stop the task and start it again) after you change Python code. `scripts/lint` formats and lints the code with ruff.
 `scripts/test` runs the tests with coverage.
@@ -162,7 +160,7 @@ The card's source is in [`frontend/`](frontend) (TypeScript + Lit). `scripts/set
 1. Run the task **Watch card** (`npm run watch --prefix frontend`). It rebuilds
    `custom_components/switch_timer/frontend/switch-timer-card.js` on every save.
 2. Run **Run Home Assistant on port 8123** in a second terminal. HA loads the card when it starts, if the JS
-   file exists and at least one Switch Timer is set up (e.g. for `switch.test_pump`).
+   file exists and the Switch Timer integration is added (Add integration → Switch Timer → Submit).
 3. Add the card to a dashboard of your own (**Settings → Dashboards → Add dashboard**); the default Overview is
    generated automatically. Pick **Add card → By card → Switch Timer**, or paste
    `type: custom:switch-timer-card` / `entity: switch.test_pump` in the code editor.
