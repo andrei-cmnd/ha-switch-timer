@@ -188,7 +188,10 @@ class SwitchTimerCardEditor extends LitElement {
 
   private _renderStatus(): TemplateResult | typeof nothing {
     const entityId = this._config?.entity;
-    if (!entityId || !this.hass?.states[entityId]) return nothing;
+    if (!entityId) {
+      return html`<div class="status">Pick a switch, light, fan or toggle.</div>`;
+    }
+    if (!this.hass?.states[entityId]) return nothing;
     const name = this._name(entityId);
     if (findTimerEntities(this.hass, entityId)) {
       return html`<div class="status has-timer">✓ ${name} has a Switch Timer.</div>`;

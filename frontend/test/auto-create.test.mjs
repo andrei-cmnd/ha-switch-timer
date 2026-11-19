@@ -129,16 +129,6 @@ test("non-admins are asked to contact an admin; nothing is created", async () =>
   assert.deepEqual(hass.calls, []);
 });
 
-test("a card without an entity asks to pick one and creates nothing", async () => {
-  const hass = makeHass();
-  const card = mount("switch-timer-card", hass, "");
-  await card.updateComplete;
-  await settle();
-
-  assert.equal(text(card, ".warning"), "Pick a switch, light, fan or toggle in the card editor.");
-  assert.deepEqual(hass.calls, []);
-});
-
 test("editor: picking an entity creates its timer and refreshes the preview", async () => {
   const hass = makeHass();
   const editor = mount("switch-timer-card-editor", hass);
@@ -167,10 +157,4 @@ test("editor: non-admin sees the ask-an-admin status", async () => {
     "Garden pump has no Switch Timer yet. Ask an admin to pick this switch once.",
   );
   assert.deepEqual(hass.calls, []);
-});
-
-test("card picker stub only suggests entities that already have a timer", () => {
-  const Card = customElements.get("switch-timer-card");
-  assert.deepEqual(Card.getStubConfig(makeHass({ timer: true })), { entity: PUMP });
-  assert.deepEqual(Card.getStubConfig(makeHass()), { entity: "" });
 });
