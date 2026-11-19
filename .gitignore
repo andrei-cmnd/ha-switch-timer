@@ -29,3 +29,6 @@ custom_components/switch_timer/frontend/*.gz
 # OS / editors
 .DS_Store
 Thumbs.db
+
+# Test environment verification output (scripts/test-env verify)
+verify-report/
