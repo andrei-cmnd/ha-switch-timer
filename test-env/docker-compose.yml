@@ -1,0 +1,46 @@
+# One-command test environment for Switch Timer. Use scripts/test-env (bash) or
+# scripts/test-env.ps1 (Windows) rather than calling docker compose directly.
+name: ha-switch-timer-test
+
+services:
+  ha:
+    build:
+      context: ..
+      dockerfile: test-env/Dockerfile
+      args:
+        HA_VERSION: ${HA_VERSION:-2026.10.2}
+    image: ha-switch-timer-test:latest
+    container_name: ha-switch-timer-test
+    # Localhost only: other devices on your network can't reach this test HA, so the
+    # trusted_networks login bypass (see config/configuration.yaml) stays local.
+    ports:
+      - "127.0.0.1:8123:8123"
+    volumes:
+      - config:/config
+    environment:
+      TZ: ${TZ:-UTC}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8123/manifest.json"]
+      interval: 5s
+      timeout: 5s
+      start_period: 30s
+      retries: 60
+    restart: "no"
+
+  # One-shot: onboarding, the Switch Timer hub and a test dashboard (idempotent).
+  provision:
+    image: ha-switch-timer-test:latest
+    pull_policy: never # built locally by the ha service
+    container_name: ha-switch-timer-test-provision
+    depends_on:
+      ha:
+        condition: service_healthy
+    entrypoint: ["python3", "/opt/switch-timer-test/provision.py"]
+    environment:
+      HA_URL: http://ha:8123
+      PROVISION_HUB: ${PROVISION_HUB:-true}
+    restart: "no"
+
+volumes:
+  config:
+    name: ha-switch-timer-test-config
