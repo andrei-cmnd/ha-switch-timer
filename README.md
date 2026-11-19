@@ -27,6 +27,9 @@ A Home Assistant integration (2026.10+) with a bundled Lovelace card, `custom:sw
 1. Install with HACS (custom repository). _Details: TODO (v0.1.0)._
 2. Restart Home Assistant.
 3. Once: **Settings → Devices & services → Add integration → Switch Timer → Submit**. There is nothing to fill in.
+   Switch Timer then appears under **Integrations**.
+4. **Reload the browser page once** (F5), as the success message says. Home Assistant adds the card to pages
+   loaded after setup; a page that was already open doesn't pick it up until it is reloaded. No restart is needed.
 
 That's all the setup there is. Timers are created by picking a switch in a Switch Timer card (see [Card](#card)).
 
@@ -62,12 +65,15 @@ Home Assistant, and follows the switch if its entity ID is renamed.
 ## Card
 
 The integration loads the card itself; there's no Lovelace resource to add. It is available once the
-integration is added (Installation step 3). On a dashboard, choose **Edit → Add card → By card → Switch Timer**, or use YAML:
+integration is added and the page reloaded (Installation steps 3–4). On a dashboard, choose **Edit → Add card → By card → Switch Timer**, or use YAML:
 
 ```yaml
 type: custom:switch-timer-card
 entity: switch.my_pump
 ```
+
+A new card starts without an entity and shows a demo (a switch running a timer) until you pick one, in the
+card picker and in the editor. The demo is only a picture: it doesn't control or create anything.
 
 Picking the entity is the only setup:
 

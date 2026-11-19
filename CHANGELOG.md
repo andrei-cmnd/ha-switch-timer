@@ -39,5 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - "Custom element not found: switch-timer-card" in HA 2026.10: the frontend replaces its element
   registry after integration-loaded cards have run; the card now defines itself again on the new
   registry. Failed entity lookups show an error on the card instead of breaking it.
+- The Switch Timer entry listed under Settings → Helpers with a red "!"; it is now an integration of type
+  `hub` and lists under Integrations.
+- Right after setup the card wasn't available until the page was reloaded. Home Assistant only adds the card
+  to pages loaded after setup, so the success message now says to reload once (no restart needed).
+- Card picker preview: a static demo ("Your selected switch", running a timer) that renders immediately,
+  instead of a real entity (or nothing) on first display. It makes no calls and never creates a timer.
+  New cards start without an entity; the editor asks to pick one.
+- Narrow cards (e.g. the ~300px picker tile): compact layout, "Run time" and the off time no longer wrap.
 - Dev config: `energy` is loaded, so the card picker no longer logs `unknown_command`
   (`energy/get_prefs`).

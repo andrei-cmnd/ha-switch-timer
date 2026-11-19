@@ -44,8 +44,11 @@ Implementation notes:
 - `switch_timer.stop`.
 
 ## Config flow
-- Hub: `single_config_entry`; user step has no fields (description + Submit). VERSION 1.
-  Adding the hub loads the integration and registers the card.
+- Hub: `single_config_entry`, manifest `integration_type: "hub"` (lists under Integrations; as a
+  "helper" the entity-less hub showed in Helpers with a red "!"). User step has no fields
+  (description + Submit). VERSION 1. Adding the hub loads the integration and registers the card.
+- The success message (`config.create_entry.default`) says to reload the page once: the 2026.10
+  frontend loads extra module URLs only at page load (it never subscribes to `frontend/subscribe_extra_js`).
 - Timers: config subentries of type `timer` on the hub, data = `{entity_id, run_time_min, run_time_max,
   run_time_step, default_run_time, extend_minutes}`, subentry unique_id = controlled entity_id,
   title = entity friendly name. One device per timer; entities added with `config_subentry_id`.
@@ -76,6 +79,12 @@ Outer frame: white, 2px #C9CDD2 border, radius 20px, padding 16px.
   - Buttons: "+15 min" (white, border) and "Stop now" (#1F2328, white text), 48px, 2 columns.
   - Hint: "Tap the card to stop".
 - ON + manual: buttons "Start N min timer" (white, green border/text) and "Turn off" (dark).
+- No entity (card picker preview, new card in the editor): static demo "Your selected switch" in the ON + timed
+  state (countdown from 18:24, segmented bar, "+15 min" / "Stop now"). Purely visual: no service or websocket calls,
+  never creates a timer, renders before hass arrives. `getStubConfig` returns `{}`; the editor shows
+  "Pick a switch, light, fan or toggle" until a pick.
+- Narrow cards (< 360px, e.g. the ~300px picker tile): compact sizes via a container query; "Run time" and the
+  off time never wrap; the name may take two lines.
 Card options: `entity` (required), `name`, `icon`, `presets` (list of minutes), `extend_minutes`, `show_hints`.
 Visual editor required. Respect HA theme where sensible but default to the colors above.
 
