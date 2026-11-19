@@ -6,6 +6,9 @@
         "description": "Adds Switch Timer to Home Assistant. You only do this once: timers are created automatically when you pick a switch in a Switch Timer card."
       }
     },
+    "create_entry": {
+      "default": "Switch Timer is ready. Reload this page (F5) once to load the Switch Timer card, then add it to a dashboard and pick a switch. Timers are created automatically."
+    },
     "abort": {
       "single_instance_allowed": "Switch Timer is already set up."
     }

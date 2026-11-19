@@ -6,7 +6,7 @@
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/andrei-cmnd/ha-switch-timer",
-  "integration_type": "helper",
+  "integration_type": "hub",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/andrei-cmnd/ha-switch-timer/issues",
   "requirements": [],

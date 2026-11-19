@@ -5,6 +5,8 @@ from __future__ import annotations
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers.translation import async_get_translations
+from homeassistant.loader import async_get_integration
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.switch_timer.const import (
@@ -145,3 +147,23 @@ async def test_options_without_timers(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "no_timers"
     assert hass.states.get(ENDS_AT) is None
+
+
+async def test_integration_lists_as_a_hub(hass: HomeAssistant) -> None:
+    """A single-entry hub, not a helper: listed under Integrations, no "!" in Helpers.
+
+    As a helper, the entity-less hub entry showed under Settings → Helpers with a
+    red "!" icon.
+    """
+    integration = await async_get_integration(hass, DOMAIN)
+
+    assert integration.integration_type == "hub"
+    assert integration.single_config_entry is True
+
+
+async def test_setup_success_message_says_to_reload(hass: HomeAssistant) -> None:
+    """The open page only loads the card after a reload; the success dialog says so."""
+    translations = await async_get_translations(hass, "en", "config", [DOMAIN])
+
+    message = translations[f"component.{DOMAIN}.config.create_entry.default"]
+    assert "Reload this page" in message
