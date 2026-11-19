@@ -145,6 +145,47 @@ They are kept in [`blueprints/`](blueprints) for people who don't want a custom 
 - [Timed switch – control (script)](blueprints/script/switch_timer/timed_switch_control.yaml)
   [![Import](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fandrei-cmnd%2Fha-switch-timer%2Fblob%2Fmain%2Fblueprints%2Fscript%2Fswitch_timer%2Ftimed_switch_control.yaml)
 
+## Test environment
+
+A ready-to-use Home Assistant with Switch Timer, without the dev container. It needs only Docker.
+
+```powershell
+scripts	est-env.ps1 up        # Windows PowerShell
+```
+```bash
+scripts/test-env up            # Linux, macOS, Git Bash
+```
+
+`up` builds the card, starts the official `ghcr.io/home-assistant/home-assistant` image (same version as
+`requirements.txt`) as the container `ha-switch-timer-test`, waits until it answers and prints
+`Ready: http://localhost:8123`. On first start it is set up for you:
+
+- onboarding done, user **test** / **test-pass-123**; from this machine you are logged in automatically;
+- test devices `switch.test_pump` and `fan.test_fan` (backed by toggle helpers);
+- the Switch Timer integration added, and a dashboard **Switch Timer test** with a card for each device.
+  Opening it creates both timers, as the card does for any admin.
+
+| Command (bash / PowerShell) | What it does |
+|---|---|
+| `up` | Build and start (keeps existing data). Rebuild after code changes with `up` again. |
+| `reset` | Delete the test volume and start fresh: a true first start. |
+| `down` | Stop. The data volume is kept. |
+| `logs` | Follow Home Assistant's log. |
+| `verify` | `reset`, then Playwright checks in Firefox for both modes; writes `verify-report/report.md` with screenshots. |
+
+**First-install mode** (`up --first-install` / `up -FirstInstall`, same for `reset` and `verify`) only does the
+onboarding, so you can test **Add integration → Switch Timer → Submit**, the page reload and the card picker yourself.
+
+If port 8123 is taken (for example by the dev container's Home Assistant), `up` says so and stops. Stop the other
+Home Assistant first.
+
+> [!WARNING]
+> Test environment only. It logs in **without a password** from this machine (`trusted_networks` with
+> `allow_bypass_login`, see `test-env/config/configuration.yaml`). The port is published on **127.0.0.1 only**,
+> so other devices on your network can't reach it. Home Assistant runs as root inside its container, as the
+> official image requires; nothing from your disk is mounted, all data is in the Docker volume
+> `ha-switch-timer-test-config`. Your dev `config/` is never touched.
+
 ## Development
 
 1. Open the repo in VS Code and choose **Reopen in Container**. This needs Docker and the Dev Containers extension.

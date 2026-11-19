@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   already have a timer.
 - Admin-only websocket command `switch_timer/ensure_timer` used by the card to create timers.
 - A timer is removed automatically when its controlled entity is deleted, and follows an entity ID rename.
+- One-command test environment (`scripts/test-env`, `scripts/test-env.ps1`): the official Home Assistant
+  image with the integration and card, pre-provisioned (or first-install mode), on localhost only, plus
+  `verify`, which runs Playwright checks in Firefox and writes a report.
 
 ### Fixed
 
