@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# One-command Switch Timer test environment (official Home Assistant image, no dev container).
+#
+#   scripts/test-env up [--first-install]      build, start, wait, print the URL
+#   scripts/test-env reset [--first-install]   wipe the test volume and start fresh
+#   scripts/test-env down                      stop (the volume is kept)
+#   scripts/test-env logs                      follow Home Assistant's log
+#   scripts/test-env verify [--first-install | --provisioned]
+#                                              reset + Playwright checks → verify-report/report.md
+#                                              (both modes when no flag is given)
+#
+# --first-install: onboarding only; you add the hub (Add integration → Switch Timer → Submit)
+#                  and the cards yourself.
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+export MSYS_NO_PATHCONV=1 # Git Bash on Windows: keep container paths as written
+
+CONTAINER=ha-switch-timer-test
+PROVISIONER=ha-switch-timer-test-provision
+NETWORK=ha-switch-timer-test_default
+URL=http://localhost:8123
+PLAYWRIGHT_VERSION=1.64.1
+HA_VERSION="$(sed -n 's/^homeassistant==//p' requirements.txt)"
+export HA_VERSION
+compose() { docker compose -f test-env/docker-compose.yml "$@"; }
+host_path() { pwd -W 2>/dev/null || pwd; } # docker needs a Windows path under Git Bash
+
+usage() {
+    sed -n '3,13p' "$0" | sed 's/^# \{0,1\}//'
+    exit 2
+}
+
+mode_from() {
+    case "${1:-}" in
+        --first-install) echo first-install ;;
+        --provisioned | "") echo provisioned ;;
+        *) usage ;;
+    esac
+}
+
+port_owner() {
+    # Prints who holds port 8123 (other than our own test container); empty if free.
+    if [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null || true)" = true ]; then
+        return
+    fi
+    local name
+    name="$(docker ps --filter publish=8123 --format '{{.Names}}' | head -n1)"
+    if [ -n "$name" ]; then
+        echo "the Docker container \"$name\""
+    elif (exec 3<>/dev/tcp/127.0.0.1/8123) 2>/dev/null; then
+        echo "another program (often the dev container's Home Assistant, forwarded by VS Code)"
+    fi
+}
+
+wait_ready() {
+    echo "Waiting for Home Assistant and provisioning…"
+    local code
+    code="$(docker wait "$PROVISIONER")"
+    if [ "$code" != 0 ]; then
+        docker logs "$PROVISIONER" >&2 || true
+        echo "Provisioning failed (exit $code). Logs: scripts/test-env logs" >&2
+        exit 1
+    fi
+    docker logs "$PROVISIONER" | sed 's/^/  /'
+    for _ in $(seq 1 90); do
+        if curl -fsS "$URL/manifest.json" >/dev/null 2>&1; then
+            return
+        fi
+        sleep 2
+    done
+    echo "Home Assistant did not answer on $URL" >&2
+    exit 1
+}
+
+up() {
+    local mode="$1"
+    local owner
+    owner="$(port_owner)"
+    if [ -n "$owner" ]; then
+        echo "Port 8123 is already in use by $owner." >&2
+        echo "Stop it first (in VS Code: stop the \"Run Home Assistant on port 8123\" task or close the dev" >&2
+        echo "container), then run: scripts/test-env up" >&2
+        exit 1
+    fi
+    if [ "$mode" = first-install ]; then export PROVISION_HUB=false; else export PROVISION_HUB=true; fi
+    echo "Building and starting the test environment (Home Assistant $HA_VERSION, $mode mode)…"
+    compose up -d --build
+    wait_ready
+    echo
+    echo "Ready: $URL"
+    echo "  Mode: $mode. Login is automatic from this machine (user: test / test-pass-123)."
+    if [ "$mode" = first-install ]; then
+        echo "  Next: Settings → Devices & services → Add integration → Switch Timer → Submit, then reload the page."
+    else
+        echo "  Dashboard: $URL/switch-timer-test/test"
+    fi
+}
+
+reset() {
+    echo "Removing the test environment and its volume…"
+    compose down -v --remove-orphans
+    up "$1"
+}
+
+verify_mode() {
+    local mode="$1"
+    reset "$mode"
+    echo
+    echo "Running the Playwright checks ($mode)…"
+    docker run --rm --network "$NETWORK" --ipc=host --user "$(id -u):$(id -g)" \
+        -e HOME=/tmp -e HA_URL="http://$CONTAINER:8123" -e MODE="$mode" -e REPORT_DIR=/report \
+        -v "$(host_path)/test-env/verify:/verify:ro" -v "$(host_path)/verify-report:/report" \
+        "mcr.microsoft.com/playwright:v$PLAYWRIGHT_VERSION-noble" \
+        bash -c "mkdir -p /tmp/verify && cd /tmp/verify && npm init -y >/dev/null \
+            && npm install --no-audit --no-fund --silent playwright@$PLAYWRIGHT_VERSION \
+            && cp /verify/*.mjs . && node run.mjs" || return 1
+}
+
+verify() {
+    mkdir -p verify-report
+    rm -f verify-report/*.json verify-report/*.png verify-report/report.md
+    local modes status=0
+    case "${1:-}" in
+        "") modes="first-install provisioned" ;; # ends in provisioned mode, ready to inspect
+        *) modes="$(mode_from "$1")" ;;
+    esac
+    for mode in $modes; do verify_mode "$mode" || status=1; done
+    docker run --rm --user "$(id -u):$(id -g)" -e REPORT_DIR=/report -e PLAYWRIGHT_VERSION="$PLAYWRIGHT_VERSION" \
+        -v "$(host_path)/test-env/verify:/verify:ro" -v "$(host_path)/verify-report:/report" \
+        "mcr.microsoft.com/playwright:v$PLAYWRIGHT_VERSION-noble" node /verify/assemble.mjs
+    echo "Report: verify-report/report.md"
+    return "$status"
+}
+
+case "${1:-}" in
+    up) up "$(mode_from "${2:-}")" ;;
+    reset) reset "$(mode_from "${2:-}")" ;;
+    down) compose down ;;
+    logs) docker logs -f "$CONTAINER" ;;
+    verify) verify "${2:-}" ;;
+    *) usage ;;
+esac
