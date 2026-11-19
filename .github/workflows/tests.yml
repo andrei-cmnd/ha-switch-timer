@@ -43,3 +43,5 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test  # builds, then renders the card in happy-dom
+      - run: npx playwright install --with-deps firefox
+      - run: npm run test:browser  # layout at narrow widths, in Firefox
