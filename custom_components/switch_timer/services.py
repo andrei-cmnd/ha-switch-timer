@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceValidationError
@@ -58,26 +57,27 @@ def _managers(hass: HomeAssistant, call: ServiceCall) -> list[SwitchTimerManager
     A target is either one of our own entities or the controlled entity itself.
     """
     registry = er.async_get(hass)
-    loaded = {
-        entry.entry_id: entry
-        for entry in hass.config_entries.async_entries(DOMAIN)
-        if entry.state is ConfigEntryState.LOADED
-    }
-    by_controlled = {entry.runtime_data.entity_id: entry for entry in loaded.values()}
+    hubs = [
+        entry.runtime_data for entry in hass.config_entries.async_loaded_entries(DOMAIN)
+    ]
 
     managers: list[SwitchTimerManager] = []
     for entity_id in call.data[ATTR_ENTITY_ID]:
+        manager: SwitchTimerManager | None = None
         reg_entry = registry.async_get(entity_id)
-        if reg_entry is not None and reg_entry.platform == DOMAIN:
-            entry = loaded.get(reg_entry.config_entry_id or "")
-        else:
-            entry = by_controlled.get(entity_id)
-        if entry is None:
+        for hub in hubs:
+            if reg_entry is not None and reg_entry.platform == DOMAIN:
+                manager = hub.managers.get(reg_entry.config_subentry_id or "")
+            else:
+                manager = hub.manager_for_entity(entity_id)
+            if manager is not None:
+                break
+        if manager is None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="entity_not_managed",
                 translation_placeholders={"entity_id": entity_id},
             )
-        if entry.runtime_data not in managers:
-            managers.append(entry.runtime_data)
+        if manager not in managers:
+            managers.append(manager)
     return managers

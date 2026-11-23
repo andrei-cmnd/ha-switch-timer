@@ -18,6 +18,8 @@ export interface HomeAssistant {
   entities: Record<string, EntityRegistryDisplayEntry>;
   locale: { language: string; time_format?: string };
   themes: { darkMode?: boolean };
+  user?: { is_admin: boolean };
+  callWS<T = unknown>(message: Record<string, unknown>): Promise<T>;
   callService(
     domain: string,
     service: string,
@@ -67,6 +69,15 @@ export function findTimerEntities(
       e.device_id === sensor.device_id,
   );
   return { sensor: sensor.entity_id, number: number?.entity_id };
+}
+
+export const SUPPORTED_DOMAINS = ["switch", "light", "fan", "input_boolean"];
+
+/** Entities a Switch Timer can control. */
+export function eligibleEntities(hass: HomeAssistant): string[] {
+  return Object.keys(hass.states)
+    .filter((id) => SUPPORTED_DOMAINS.includes(id.split(".")[0]))
+    .sort();
 }
 
 /** Controlled entity ids that have a Switch Timer. */

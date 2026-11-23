@@ -2,6 +2,7 @@ import { LitElement, html, nothing, type PropertyValues, type TemplateResult } f
 import { keyed } from "lit/directives/keyed.js";
 
 import "./editor";
+import { ensureTimer } from "./ensure";
 import { defineElement } from "./register";
 import { cardStyles, tokens } from "./styles";
 import {
@@ -12,7 +13,6 @@ import {
   type HomeAssistant,
   type SwitchTimerCardConfig,
   type TimerEntities,
-  controlledEntities,
   findTimerEntities,
   formatMinutes,
 } from "./types";
@@ -23,12 +23,18 @@ const HOLD_MS = 500; // header hold → more-info; −/+ hold → start repeatin
 const REPEAT_MS = 150; // −/+ repeat rate while held
 const SEND_MS = 500; // at most one number.set_value per this interval while held
 
+// Demo shown when no entity is picked (card picker preview, new card in the editor).
+const DEMO_NAME = "Your selected switch";
+const DEMO_LEFT_S = 18 * 60 + 24; // countdown starts at 18:24…
+const DEMO_DURATION_S = 30 * 60; // …of a 30 min run
+
 class SwitchTimerCard extends LitElement {
   static override properties = {
     hass: { attribute: false },
     _config: { state: true },
     _now: { state: true },
     _localRunTime: { state: true },
+    _setupError: { state: true },
   };
 
   static override styles = [tokens, cardStyles];
@@ -41,9 +47,14 @@ class SwitchTimerCard extends LitElement {
 
   private _timerEntities?: TimerEntities;
   private _lookupError?: string;
+  /** Entities this card already tried to create a timer for (once per entity). */
+  private _setupAttempted = new Set<string>();
+  private _setupError?: string;
   private _lookupKey?: unknown;
   private _tick?: number;
   private _bar?: { key: string; style: string };
+  /** End time of the demo run; restarts at 18:24 when it runs out. */
+  private _demoEndsAt?: number;
 
   private _headerHold?: number;
   private _headerHeld = false;
@@ -56,16 +67,13 @@ class SwitchTimerCard extends LitElement {
     return document.createElement("switch-timer-card-editor");
   }
 
-  static getStubConfig(hass: HomeAssistant): Partial<SwitchTimerCardConfig> {
-    try {
-      return { entity: controlledEntities(hass)[0] ?? "" };
-    } catch {
-      return { entity: "" };
-    }
+  /** A new card starts without an entity: the picker and the editor show the demo. */
+  static getStubConfig(): Partial<SwitchTimerCardConfig> {
+    return {};
   }
 
   setConfig(config: SwitchTimerCardConfig): void {
-    if (!config?.entity) throw new Error("Set the entity controlled by a Switch Timer");
+    if (!config) throw new Error("Invalid configuration");
     if (
       config.presets !== undefined &&
       (!Array.isArray(config.presets) ||
@@ -113,6 +121,8 @@ class SwitchTimerCard extends LitElement {
       }
     }
 
+    this._maybeCreateTimer();
+
     // Drop the local run time once HA reports it (and nothing is held).
     const number = this._numberState();
     if (
@@ -125,9 +135,37 @@ class SwitchTimerCard extends LitElement {
     }
   }
 
+  /**
+   * An admin's card for an entity without a timer creates one (once per entity).
+   * Nothing else to do: the card switches to its normal view when HA reports the entities.
+   */
+  private _maybeCreateTimer(): void {
+    const entityId = this._config?.entity;
+    if (
+      !this.hass ||
+      !entityId ||
+      this._timerEntities ||
+      this._lookupError ||
+      !this.hass.states[entityId] ||
+      !this.hass.user?.is_admin ||
+      this._setupAttempted.has(entityId)
+    ) {
+      return;
+    }
+    this._setupAttempted.add(entityId);
+    this._setupError = undefined;
+    void ensureTimer(this.hass, entityId).then((result) => {
+      if (!result.ok && this._config?.entity === entityId) this._setupError = result.message;
+    });
+  }
+
   protected override updated(): void {
-    if (this._mode() === "timed") this._startTicking();
+    if (this._isDemo() || this._mode() === "timed") this._startTicking();
     else this._stopTicking();
+  }
+
+  private _isDemo(): boolean {
+    return Boolean(this._config) && !this._config!.entity;
   }
 
   // --- State --------------------------------------------------------------------
@@ -353,20 +391,26 @@ class SwitchTimerCard extends LitElement {
   }
 
   protected override render(): TemplateResult | typeof nothing {
-    if (!this.hass || !this._config) return nothing;
+    if (!this._config) return nothing;
+    if (!this._config.entity) return this._renderDemo();
+    if (!this.hass) return nothing;
     const entity = this._entityState();
     if (this._lookupError) {
       return html`<ha-card>
         <div class="warning">Switch Timer card error: ${this._lookupError}</div>
       </ha-card>`;
     }
-    if (!this._timerEntities) {
+    if (!entity) {
       return html`<ha-card>
-        <div class="warning">
-          No Switch Timer is set up for ${this._config.entity}. Add one in Settings → Devices &
-          services → Switch Timer.
-        </div>
+        <div class="warning">Entity not found: ${this._config.entity}</div>
       </ha-card>`;
+    }
+    if (!this._timerEntities) {
+      const entityName = entity.attributes.friendly_name ?? this._config.entity;
+      const text = !this.hass.user?.is_admin
+        ? `${entityName} has no Switch Timer yet. Ask an admin to pick this switch once.`
+        : (this._setupError ?? `Setting up Switch Timer for ${entityName}…`);
+      return html`<ha-card><div class="warning" role="status">${text}</div></ha-card>`;
     }
     const mode = this._mode();
     const on = mode === "timed" || mode === "manual";
@@ -390,7 +434,11 @@ class SwitchTimerCard extends LitElement {
         </div>
         <div class="titles">
           <div class="name">${name}</div>
-          <div class="label">${this._label(mode)}</div>
+          <div class="label">
+            ${mode === "timed"
+              ? html`On · turns off at <span class="time">${this._formatTime(this._endsAt()!)}</span>`
+              : this._label(mode)}
+          </div>
         </div>
         <div class="pill">${mode === "unavailable" ? "N/A" : on ? "ON" : "OFF"}</div>
       </div>
@@ -401,6 +449,50 @@ class SwitchTimerCard extends LitElement {
           : mode === "manual"
             ? this._renderManual()
             : nothing}
+    </ha-card>`;
+  }
+
+  /**
+   * Static demo: ON + timed with a ticking countdown. Purely visual: no handlers,
+   * no hass access, no service or websocket calls, never creates a timer.
+   */
+  private _renderDemo(): TemplateResult {
+    const now = this._now;
+    if (this._demoEndsAt === undefined || this._demoEndsAt <= now) {
+      // Whole seconds, like real runs, so the countdown steps with the per-second ticks.
+      this._demoEndsAt = Math.floor(now / 1000) * 1000 + DEMO_LEFT_S * 1000;
+    }
+    const endsAt = this._demoEndsAt;
+    const left = Math.max(0, Math.ceil((endsAt - now) / 1000));
+    const countdown = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+    const bar = this._barStyle(endsAt, DEMO_DURATION_S);
+    const extend = this._config!.extend_minutes ?? DEFAULT_EXTEND_MINUTES;
+    return html`<ha-card class="demo">
+      <div class="header on" aria-label="Demo">
+        <div class="icon-circle">
+          <ha-icon .icon=${this._config!.icon || DEFAULT_ICON}></ha-icon>
+        </div>
+        <div class="titles">
+          <div class="name">${this._config!.name || DEMO_NAME}</div>
+          <div class="label">
+            On · turns off at <span class="time">${this._formatTime(endsAt)}</span>
+          </div>
+        </div>
+        <div class="pill">ON</div>
+      </div>
+      <div class="time-box">
+        <div class="timer-icon"><ha-icon icon="mdi:timer-outline"></ha-icon></div>
+        <div class="time-left">Time left</div>
+        <div class="countdown" role="timer">${countdown}</div>
+        <div class="bar">
+          ${keyed(bar.key, html`<div class="bar-remaining" style=${bar.style}></div>`)}
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn" tabindex="-1">+${extend} min</button>
+        <button class="btn strong" tabindex="-1">Stop now</button>
+      </div>
+      ${this._hint("Demo · pick a switch in the card editor")}
     </ha-card>`;
   }
 

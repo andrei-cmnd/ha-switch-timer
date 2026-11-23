@@ -6,6 +6,9 @@ DOMAIN: Final = "switch_timer"
 
 SUPPORTED_DOMAINS: Final = ["switch", "light", "fan", "input_boolean"]
 
+# One "timer" config subentry of the hub entry per controlled entity
+SUBENTRY_TYPE_TIMER: Final = "timer"
+
 # Options
 CONF_DEFAULT_RUN_TIME: Final = "default_run_time"
 CONF_EXTEND_MINUTES: Final = "extend_minutes"

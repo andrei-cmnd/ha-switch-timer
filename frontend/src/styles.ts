@@ -53,6 +53,8 @@ export const cardStyles = css`
     background: var(--st-frame-bg);
     box-shadow: none;
     color: var(--st-text);
+    /* Size container for the narrow layout below (e.g. the ~300px card picker tile). */
+    container-type: inline-size;
   }
   button {
     font: inherit;
@@ -104,17 +106,22 @@ export const cardStyles = css`
     min-width: 0;
   }
   .name {
+    display: -webkit-box;
     overflow: hidden;
     font-size: 20px;
     font-weight: 600;
     line-height: 1.3;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2; /* long names wrap to two lines, then ellipsis */
   }
   .label {
     font-size: 14px;
     line-height: 1.4;
     color: var(--st-text-secondary);
+  }
+  .label .time {
+    white-space: nowrap; /* "10:26 AM" never splits across lines */
   }
   .pill {
     padding: 6px 12px;
@@ -149,8 +156,12 @@ export const cardStyles = css`
     padding: 4px;
   }
   .run-time-title {
+    min-width: 0;
+    overflow: hidden;
     font-size: 16px;
     font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .square {
     width: 44px;
@@ -280,6 +291,85 @@ export const cardStyles = css`
   .btn.accent {
     border-color: var(--st-accent);
     color: var(--st-accent-text);
+  }
+
+  /* Demo (no entity picked): purely visual. */
+  .demo .header,
+  .demo .btn {
+    cursor: default;
+  }
+
+  /* Narrow cards, e.g. the card picker tile (~300px). */
+  @container (max-width: 359px) {
+    ha-card {
+      gap: 10px;
+      padding: 12px;
+    }
+    .header {
+      grid-template-columns: 40px 1fr auto;
+      column-gap: 10px;
+      padding: 10px;
+    }
+    .icon-circle {
+      width: 40px;
+      height: 40px;
+    }
+    .name {
+      font-size: 18px;
+    }
+    .label {
+      font-size: 13px;
+    }
+    .pill {
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+    .run-time {
+      grid-template-columns: 1fr 40px 76px 40px;
+      column-gap: 6px;
+      padding: 2px;
+    }
+    .run-time-title {
+      font-size: 15px;
+    }
+    .square {
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+    }
+    .value {
+      height: 40px;
+      font-size: 17px;
+    }
+    .presets {
+      gap: 6px;
+    }
+    .preset {
+      height: 44px;
+      font-size: 13px;
+    }
+    .time-box {
+      grid-template-columns: 36px 1fr auto;
+      column-gap: 10px;
+      padding: 10px 12px;
+    }
+    .timer-icon {
+      width: 36px;
+      height: 36px;
+    }
+    .time-left {
+      font-size: 14px;
+    }
+    .countdown {
+      font-size: 18px;
+    }
+    .btn {
+      height: 44px;
+      font-size: 14px;
+    }
+    .hint {
+      font-size: 12px;
+    }
   }
 
   .hint {

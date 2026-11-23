@@ -1,0 +1,14 @@
+# Build context for test-env/Dockerfile (repo root). Keep it small and free of local state.
+.git
+.github
+.devcontainer
+.vscode
+config
+prototype
+verify-report
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+custom_components/switch_timer/frontend/*.js
+custom_components/switch_timer/frontend/*.map

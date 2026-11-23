@@ -8,7 +8,8 @@ This repo replaces a working prototype built from helpers + 2 blueprints + a cus
 
 ## Target
 - Home Assistant 2026.10+ (`custom_components/switch_timer`), installable via HACS (custom repository).
-- One config entry per controlled entity, created in the UI.
+- One "Switch Timer" hub config entry, added once in the UI; one timer (config subentry) per
+  controlled entity, created automatically from the card. Users never create timers manually.
 - A bundled Lovelace card `custom:switch-timer-card` that the integration registers itself
   (no manual Lovelace resource). Card config minimum: `entity: switch.xxx`.
 - No runtime dependency on button-card, circular-timer-card or card-mod.
@@ -32,19 +33,34 @@ Implementation notes:
 - Use `homeassistant.turn_on` / `turn_off` so `switch`, `light`, `fan`, `input_boolean` all work.
 - Ignore transitions to/from `unavailable`/`unknown`.
 
-## Entities per config entry
+## Entities per timer (config subentry)
 - `number.<name>_run_time` — minutes, RestoreNumber, min/max/step from options (default 1/240/1, value 30), mode box.
 - `sensor.<name>_ends_at` — device_class timestamp; `None` when no timed run.
   Attributes: `mode` (`off` | `timed` | `manual`), `duration` (seconds of current run), `started_at`.
 
 ## Actions (services)
-- `switch_timer.start` — target: config entry's sensor or the controlled entity; optional `minutes`.
+- `switch_timer.start` — target: the timer's sensor/number or the controlled entity; optional `minutes`.
 - `switch_timer.extend` — optional `minutes` (default from options, 15).
 - `switch_timer.stop`.
 
 ## Config flow
-User step: pick entity (switch/light/fan/input_boolean), name (default: entity friendly name),
-default run time. Options flow: min/max/step, default run time, extend minutes. Unique id = controlled entity_id.
+- Hub: `single_config_entry`, manifest `integration_type: "hub"` (lists under Integrations; as a
+  "helper" the entity-less hub showed in Helpers with a red "!"). User step has no fields
+  (description + Submit). VERSION 1. Adding the hub loads the integration and registers the card.
+- The success message (`config.create_entry.default`) says to reload the page once: the 2026.10
+  frontend loads extra module URLs only at page load (it never subscribes to `frontend/subscribe_extra_js`).
+- Timers: config subentries of type `timer` on the hub, data = `{entity_id, run_time_min, run_time_max,
+  run_time_step, default_run_time, extend_minutes}`, subentry unique_id = controlled entity_id,
+  title = entity friendly name. One device per timer; entities added with `config_subentry_id`.
+  No subentry flow is offered, so the UI shows no manual "Add" button.
+- Creation: admin-only websocket `switch_timer/ensure_timer {entity_id}` (idempotent) with the defaults
+  run time 30, range 1–240, step 1, extend 15. Errors: not_found, not_supported, not_loaded, unauthorized.
+  The card/editor call it when an admin picks an entity (or opens a card) without a timer; non-admins see
+  "Ask an admin to pick this switch once." Nothing is created by saving a card.
+- Hub options flow ("Configure"): pick a timer → edit min/max/step, default run time, extend minutes;
+  applied in place (no reload).
+- Timers added/removed/edited incrementally (other timers' runs untouched). A timer is removed when its
+  controlled entity is deleted from the entity registry, and follows an entity_id rename.
 
 ## Card design (approved mockup)
 Outer frame: white, 2px #C9CDD2 border, radius 20px, padding 16px.
@@ -63,6 +79,12 @@ Outer frame: white, 2px #C9CDD2 border, radius 20px, padding 16px.
   - Buttons: "+15 min" (white, border) and "Stop now" (#1F2328, white text), 48px, 2 columns.
   - Hint: "Tap the card to stop".
 - ON + manual: buttons "Start N min timer" (white, green border/text) and "Turn off" (dark).
+- No entity (card picker preview, new card in the editor): static demo "Your selected switch" in the ON + timed
+  state (countdown from 18:24, segmented bar, "+15 min" / "Stop now"). Purely visual: no service or websocket calls,
+  never creates a timer, renders before hass arrives. `getStubConfig` returns `{}`; the editor shows
+  "Pick a switch, light, fan or toggle" until a pick.
+- Narrow cards (< 360px, e.g. the ~300px picker tile): compact sizes via a container query; "Run time" and the
+  off time never wrap; the name may take two lines.
 Card options: `entity` (required), `name`, `icon`, `presets` (list of minutes), `extend_minutes`, `show_hints`.
 Visual editor required. Respect HA theme where sensible but default to the colors above.
 
